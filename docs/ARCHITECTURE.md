@@ -8,8 +8,9 @@ This document provides an overview of the architecture of the TravelCount.
 The TravelCount is a Python application
 
 ```
-|- travelcount/           # ADK-based agent
-   |- __init__.py         # Initialization file
+|- agents/                # ADK-based agents
+   |- travelcount/        # Main agent module
+     |- __init__.py       # Initialization file
 |- storage/               # Storage module
    |- __init__.py         # Initialization file
 |- web/                   # Web UI, mount ADK's web interface
