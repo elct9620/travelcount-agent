@@ -11,3 +11,9 @@ dependencies = [
     "google-adk>=1.18.0",
     "uvicorn[standard]>=0.38.0",
 ]
+
+[dependency-groups]
+dev = [
+    "python-lsp-server>=1.13.1",
+    "ruff>=0.14.5",
+]
