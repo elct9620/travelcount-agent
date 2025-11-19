@@ -42,4 +42,14 @@ Feature: Manage travel partners
     Given a travel session "Summer Vacation" with partners "Alice" and "Bob"
     When the user inputs "List all my travel partners"
     Then the agent should respond "Your travel partners are: Alice, Bob."
+
+  Scenario: Attempt to remove a non-existent partner
+    Given a travel session "Summer Vacation" with partner "Alice"
+    When the user inputs "Remove the partner named Bob"
+    Then the agent should respond "Partner 'Bob' does not exist."
+
+  Scenario: Attempt to add a duplicate partner
+    Given a travel session "Summer Vacation" with partner "Alice"
+    When the user inputs "Add a partner named Alice"
+    Then the agent should respond "Partner 'Alice' already exists."
 ```
