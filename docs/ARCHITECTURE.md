@@ -3,6 +3,11 @@ Architecture
 
 This document provides an overview of the architecture of the TravelCount.
 
+## Technology Stack
+
+- Agent Development Kit (ADK) by Google
+- Beancount
+
 ## Structure
 
 The TravelCount is a Python application
