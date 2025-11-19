@@ -37,6 +37,22 @@ The TravelCount is a Python application
 
 The TravelCount agent is built using the Agent Development Kit (ADK). It uses LLM (default: Gemini 2.5 Flash ) to process user inputs and help user in their travel, the major function is use beancount to track travel expenses.
 
+The agent defines a `typing.Protocol` interface to as contract that other modules can implement it to provide specific functionalities.
+
+```python
+from typing import Protocol
+
+class AccountRepository(Protocol):
+    def add_account(self, name: str, currency: str) -> None:
+        ...
+
+    def remove_account(self, name: str) -> None:
+        ...
+
+    def list_accounts(self) -> list[str]:
+        ...
+```
+
 ### Storage Module
 
 The beancount adapter is responsible to use beancount to store and retrieve travel expense data.
