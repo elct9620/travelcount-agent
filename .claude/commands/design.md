@@ -1,5 +1,5 @@
 ---
-allowed-tools: ["Glob", "Grep", "Read", "Task", "Write", "Edit", "LS"]
+allowed-tools: Glob, Grep, Read, Task, Write, Edit, LS, WebSearch
 argument-hint: feature to design
 description: Create or update the design document for a specific feature.
 ---
@@ -31,7 +31,8 @@ You are an expert software architect and experienced in technical documentation.
     <step>1. Read documents in ./docs/ARCHITECTURE.md to understand the overall architecture.</step>
     <loop over="related_components" as="component" parallel="true">
         <step>2. Check the codebase for files and modules related to {component}.</step>
-        <step>3. Extract relevant information about {component} and its interactions.</step>
+        <step>3. For libraries or external dependencies, use WebSearch tool to help gather information. Use official documentation and reputable sources only.</step>
+        <step>4. Extract relevant information about {component} and its interactions.</step>
     </loop>
     <return>Return the gathered information for inclusion in the design document.</return>
 </procedure>
