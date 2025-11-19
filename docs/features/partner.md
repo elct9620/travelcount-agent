@@ -21,6 +21,15 @@ def partners(operation: str, name: str = None) -> dict:
     """
 ```
 
+## Data Model
+
+The partner data is represented as Beancount accounts saved in the session's Beancount file.
+
+```beancount
+1970-01-01 open Assets:Travel:Partners:Alice USD
+1970-01-01 open Assets:Travel:Partners:Bob USD
+```
+
 ## Scenarios
 
 Following are scenarios in Gherkin format to illustrate how the agent handles partner operations.
