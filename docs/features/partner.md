@@ -1,0 +1,45 @@
+Partner
+===
+
+The partner feature allows TravelCount to add multiple travel partners to a single travel session. We can track expenses for each partner to make sure everyone pays their fair share.
+
+## Protocol
+
+This feature is a Function Tool in ADK. It defines the following interface:
+
+```python
+def partners(operation: str, name: str = None) -> dict:
+    """
+    Manage travel partners.
+
+    Args:
+        operation (str): The operation to perform. Can be "add", "remove", or "list".
+        name (str, optional): The name of the partner to add or remove. Required for "add" and "remove" operations.
+
+    Returns:
+        dict: A dictionary containing the result of the operation.
+    """
+```
+
+## Scenarios
+
+Following are scenarios in Gherkin format to illustrate how the agent handles partner operations.
+
+```gherkin
+Feature: Manage travel partners
+
+  Scenario: Add a new partner
+    Given a travel session "Summer Vacation"
+    When the user inputs "Add a partner named Alice"
+    Then the agent should respond "Partner 'Alice' has been added."
+
+  Scenario: Remove an existing partner
+    Given a travel session "Summer Vacation" with partner "Alice"
+    When the user inputs "Remove the partner named Alice"
+    Then the agent should respond "Partner 'Alice' has been removed."
+
+  Scenario: List all partners
+    Given a travel session "Summer Vacation" with partners "Alice" and "Bob"
+    When the user inputs "List all my travel partners"
+    Then the agent should respond "Your travel partners are: Alice, Bob."
+```
