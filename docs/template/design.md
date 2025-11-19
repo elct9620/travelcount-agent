@@ -33,8 +33,8 @@ The following flow describes how the [FEATURE_NAME] feature operates within Trav
 In this feature, the components have the following dependencies relationship:
 
 ```plaintext
-[COMPONENT_A] --> [COMPONENT_B]
-[COMPONENT_B] --> [OTHER_COMPONENT]
+[COMPONENT_A] --(depend)--> [COMPONENT_B]
+[COMPONENT_B] --(depend)--> [OTHER_COMPONENT]
 ...
 ```
 

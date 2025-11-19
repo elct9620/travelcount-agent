@@ -29,10 +29,14 @@ You are an expert software architect and experienced in technical documentation.
     <description>Research the codebase to gather necessary information for the design document.</description>
     <parameter name="related_components" type="list">List of related components will be implemented in the feature.</parameter>
     <step>1. Read documents in ./docs/ARCHITECTURE.md to understand the overall architecture.</step>
+    <step>2. Read documents in ./docs/entities.md to understand the domain entities, reuse if already exists.</step>
+    <condition if="entities involved">
+        <step>3. Identify and list the entities involved in the feature from the feature spec document.</step>
+    </condition>
     <loop over="related_components" as="component" parallel="true">
-        <step>2. Check the codebase for files and modules related to {component}.</step>
-        <step>3. For libraries or external dependencies, use WebSearch tool to help gather information. Use official documentation and reputable sources only.</step>
-        <step>4. Extract relevant information about {component} and its interactions.</step>
+        <step>4. Check the codebase for files and modules related to {component} use Task tool in parallel</step>
+        <step>5. For libraries or external dependencies, use WebSearch tool to help gather information. Use official documentation and reputable sources only.</step>
+        <step>6. Extract relevant information about {component} and its interactions.</step>
     </loop>
     <return>Return the gathered information for inclusion in the design document.</return>
 </procedure>
@@ -48,6 +52,9 @@ You are an expert software architect and experienced in technical documentation.
     <step>4. Identify related components and entities involved in the feature.</step>
     <step>5. <execute name="research">related_components</execute> to gather necessary information.</step>
     <step>6. Populate the design document with the gathered information, ensuring clarity and coherence.</step>
+    <condition if="entities involved">
+        <step>7. Update the ./docs/entities.md to include or modify the entities related to the feature.</step>
+    </condition>
     <step>7. Review the design document for completeness and accuracy.</step>
     <step>8. Save the updated design document.</step>
 </procedure>

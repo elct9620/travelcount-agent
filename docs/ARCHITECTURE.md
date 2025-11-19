@@ -13,6 +13,8 @@ This document provides an overview of the architecture of the TravelCount.
 The TravelCount is a Python application
 
 ```
+|- entities/               # Domain entities
+   |- __init__.py         # Initialization file
 |- agents/                # ADK-based agents
    |- travelcount/        # Main agent module
      |- __init__.py       # Initialization file
@@ -32,6 +34,18 @@ The TravelCount is a Python application
 ```
 
 ## Components
+
+We are following Clean Architecture principles to structure the TravelCount application into distinct layers, each with specific responsibilities.
+
+- The interface is defined by consumers, such as the TravelCount agent and web UI not the adapters.
+- Use dependency inversion principle to decouple high-level modules from low-level modules.
+
+### Entities
+
+The domain entities define the domain models used in the TravelCount application, such as Account, Transaction, and Category.
+
+- Plain Python classes are used to represent these entities.
+- Not data models or ORM models, it should represent the core business logic and rules.
 
 ### TravelCount Agent
 
