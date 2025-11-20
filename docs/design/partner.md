@@ -7,10 +7,9 @@ This document outlines the design to implement the [Partner](../features/partner
 In this feature, following files will be created or modified:
 
 - `agents/travelcount/agent.py` - Register the partner management tool
-- `agents/travelcount/tools/partner.py` - Partner management tool implementation
-- `storage/beancount_adapter.py` - Beancount storage adapter for partner persistence
+- `agents/travelcount/tools/partner.py` - Partner management tool implementation and PartnerRepository protocol definition
+- `storage/beancount_adapter.py` - Beancount storage adapter implementing PartnerRepository
 - `storage/session_manager.py` - Session-specific ledger file management
-- `storage/protocols.py` - Protocol interfaces for repository pattern
 - `entities/partner.py` - Partner domain entity
 - `entities/__init__.py` - Entities module initialization
 - `storage/__init__.py` - Storage module initialization
@@ -104,9 +103,9 @@ def partners(operation: str, name: str = None) -> dict:
 - PartnerRepository (Protocol) - injected via dependency injection
 - Current session context from ADK
 
-### PartnerRepository Protocol (`storage/protocols.py`)
+### PartnerRepository Protocol (`agents/travelcount/tools/partner.py`)
 
-Defines the contract for partner management operations following Clean Architecture's dependency inversion principle:
+Defines the contract for partner management operations following Clean Architecture's dependency inversion principle. The protocol is defined in the tool module (consumer) rather than storage module, following the principle that consumers define their own interfaces:
 
 ```python
 from typing import Protocol
