@@ -5,9 +5,9 @@ from typing import Optional
 from google.adk.agents.llm_agent import Agent
 from google.adk.tools.tool_context import ToolContext
 
-from agents.travelcount.tools.partner import partners as partners_tool
-from storage.beancount_adapter import BeancountAdapter
-from storage.session_manager import SessionManager
+from .tools.partner import partners as partners_tool
+from .storage.beancount_adapter import BeancountAdapter
+from .storage.session_manager import SessionManager
 
 
 def partners(
@@ -29,13 +29,13 @@ def partners(
         dict: Result with success status and message/error
     """
     # Get session ID from tool_context
-    if not tool_context or not tool_context.invocation_context:
+    if not tool_context or not tool_context.session:
         return {
             "success": False,
             "error": "Session context is not available. Please try again.",
         }
 
-    session_id = tool_context.invocation_context.session.id
+    session_id = tool_context.session.id
 
     # Create session-specific adapter
     session_manager = SessionManager(session_id)

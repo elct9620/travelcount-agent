@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from storage.session_manager import SessionManager
+from agents.travelcount.storage.session_manager import SessionManager
 
 
 class TestSessionManagerConstruction:

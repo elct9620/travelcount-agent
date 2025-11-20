@@ -17,8 +17,8 @@ from beancount import loader
 from beancount.core import data
 from beancount.parser import printer
 
-from entities.partner import Partner
-from storage.session_manager import SessionManager
+from ..entities.partner import Partner
+from .session_manager import SessionManager
 
 
 class BeancountAdapter:

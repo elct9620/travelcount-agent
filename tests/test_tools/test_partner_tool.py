@@ -8,7 +8,7 @@ for the ADK agent system.
 from unittest.mock import Mock
 
 
-from entities.partner import Partner
+from agents.travelcount.entities.partner import Partner
 from agents.travelcount.tools.partner import partners
 
 

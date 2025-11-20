@@ -13,24 +13,21 @@ This document provides an overview of the architecture of the TravelCount.
 The TravelCount is a Python application
 
 ```
-|- entities/               # Domain entities
-   |- __init__.py         # Initialization file
-|- agents/                # ADK-based agents
+|- agents/                # ADK agents directory
    |- travelcount/        # Main agent module
      |- __init__.py       # Initialization file
-|- storage/               # Storage module
-   |- __init__.py         # Initialization file
-|- web/                   # Web UI, mount ADK's web interface
-    |- __init__.py        # Initialization file
+     |- agent.py          # Agent definition
+     |- tools/            # Agent tools
+     |- entities/         # Domain entities
+     |- storage/          # Storage adapters
 |- data/                  # Data storage
     |- [session_id]/      # Session-specific data
-        | meta.json       # Metadata file
-        |- index.bean     # Bean file for session data
+        |- meta.json      # Metadata file
+        |- index.bean     # Beancount ledger file
 |- docs/                  # Documentation
-   |- ARCHITECTURE.md     # Architecture overview
 |- tests/                 # Test cases
-|- pyproject.toml         # Project configuration
-|- README.md              # Project overview
+|- main.py               # FastAPI entry point
+|- pyproject.toml        # Project configuration
 ```
 
 ## Components

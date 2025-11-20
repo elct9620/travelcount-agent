@@ -20,9 +20,9 @@ import pytest
 from beancount import loader
 
 from agents.travelcount.tools.partner import partners
-from entities.partner import Partner
-from storage.beancount_adapter import BeancountAdapter
-from storage.session_manager import SessionManager
+from agents.travelcount.entities.partner import Partner
+from agents.travelcount.storage.beancount_adapter import BeancountAdapter
+from agents.travelcount.storage.session_manager import SessionManager
 
 
 @pytest.fixture

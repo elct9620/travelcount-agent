@@ -5,6 +5,6 @@ in the TravelCount expense tracking system. All entities follow Clean Architectu
 principles and are independent from storage and framework layers.
 """
 
-from entities.partner import Partner
+from .partner import Partner
 
 __all__ = ["Partner"]

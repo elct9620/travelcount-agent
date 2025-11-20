@@ -10,7 +10,7 @@ enabling loose coupling and easy testing with mock repositories.
 
 from typing import Optional, Protocol
 
-from entities.partner import Partner
+from ..entities.partner import Partner
 
 
 class PartnerRepository(Protocol):

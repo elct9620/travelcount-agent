@@ -2,7 +2,7 @@
 
 import pytest
 
-from entities.partner import Partner
+from agents.travelcount.entities.partner import Partner
 
 
 class TestPartnerConstruction:

@@ -8,11 +8,11 @@ In this feature, following files will be created or modified:
 
 - `agents/travelcount/agent.py` - Register the partner management tool
 - `agents/travelcount/tools/partner.py` - Partner management tool implementation and PartnerRepository protocol definition
-- `storage/beancount_adapter.py` - Beancount storage adapter implementing PartnerRepository
-- `storage/session_manager.py` - Session-specific ledger file management
-- `entities/partner.py` - Partner domain entity
-- `entities/__init__.py` - Entities module initialization
-- `storage/__init__.py` - Storage module initialization
+- `agents/travelcount/storage/beancount_adapter.py` - Beancount storage adapter implementing PartnerRepository
+- `agents/travelcount/storage/session_manager.py` - Session-specific ledger file management
+- `agents/travelcount/entities/partner.py` - Partner domain entity
+- `agents/travelcount/entities/__init__.py` - Entities module initialization
+- `agents/travelcount/storage/__init__.py` - Storage module initialization
 
 ## Entities
 
@@ -109,7 +109,7 @@ Defines the contract for partner management operations following Clean Architect
 
 ```python
 from typing import Protocol
-from entities.partner import Partner
+from travelcount.entities.partner import Partner
 
 class PartnerRepository(Protocol):
     def add_partner(self, partner: Partner) -> None:
@@ -136,7 +136,7 @@ class PartnerRepository(Protocol):
 - Easy to mock for testing
 - Allows future alternative storage implementations
 
-### BeancountAdapter (`storage/beancount_adapter.py`)
+### BeancountAdapter (`agents/travelcount/storage/beancount_adapter.py`)
 
 Concrete implementation of PartnerRepository that uses Beancount as the storage backend. This adapter translates between the Partner domain entity and Beancount's account system.
 
@@ -164,7 +164,7 @@ Concrete implementation of PartnerRepository that uses Beancount as the storage 
 - beancount.parser.printer - for writing directives to file
 - beancount.loader - for parsing existing ledger files
 
-### SessionManager (`storage/session_manager.py`)
+### SessionManager (`agents/travelcount/storage/session_manager.py`)
 
 Manages session-specific data and file paths for Beancount ledgers.
 
@@ -185,7 +185,7 @@ Manages session-specific data and file paths for Beancount ledgers.
 - Python pathlib for file operations
 - json module for metadata management
 
-### Partner Entity (`entities/partner.py`)
+### Partner Entity (`agents/travelcount/entities/partner.py`)
 
 Domain entity representing a travel partner in the TravelCount system.
 
