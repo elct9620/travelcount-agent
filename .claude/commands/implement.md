@@ -29,9 +29,12 @@ You are an expert lead software developer with extensive experience in implement
     <description>Break down the actionable tasks with detailed instructions for implementation.</description>
     <parameter name="tasks" type="list">List of tasks to be assigned.</parameter>
     <loop over="tasks" as="task" parallel="true">
-        <step>1. Use Task tool to assign {task} to an appropriate developer with clear instructions.</step>
+        <condition if="lack technology details">
+            <step>1. Use WebSearch tool to research necessary technology or library details for {task}.</step>
+        </condition>
+        <step>2. Use Task tool to assign {task} to an appropriate developer with clear instructions.</step>
     </loop>
-    <step>2. Create a summary of all assigned tasks and their assignees.</step>
+    <step>3. Create a summary of all assigned tasks and their assignees.</step>
     <return>Return the summary of assigned tasks.</return>
 </procedure>
 
