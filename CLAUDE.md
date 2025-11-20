@@ -36,6 +36,13 @@ ruff format .
 
 ## Architecture
 
+The project follows **Clean Architecture** principles with clear separation of concerns:
+- Domain entities define core business logic (plain Python classes, not ORM models)
+- Agents define `typing.Protocol` interfaces as contracts for adapters to implement
+- Storage adapters implement repository protocols using dependency inversion
+
+See `docs/ARCHITECTURE.md` for detailed architectural decisions and patterns.
+
 ### ADK Agent System
 
 The project uses Google ADK's agent discovery pattern:
@@ -47,24 +54,51 @@ The project uses Google ADK's agent discovery pattern:
   - Model: gemini-2.5-flash
   - Currently a basic agent stub needing expense tracking implementation
 
-### Planned Data Layer (Not Implemented)
+### Planned Components (Not Implemented)
 
-Sessions will be stored in `data/[session_id]/`:
-- `index.bean`: Beancount ledger file per session
-- `meta.json`: Session metadata
-- `storage/`: Beancount adapter module (planned)
+- **entities/**: Domain entities (Account, Transaction, Category)
+- **storage/**: Beancount adapter implementing repository protocols
+- Sessions stored in `data/[session_id]/`:
+  - `index.bean`: Beancount ledger file per session
+  - `meta.json`: Session metadata
 
 ### Key Dependencies
 
 - `google-adk>=1.18.0`: Agent framework with FastAPI integration
 - `beancount>=3.2.0` & `beangulp>=0.2.0`: Accounting system
 - `fastapi>=0.121.2` & `uvicorn[standard]>=0.38.0`: Web server
+- `pytest>=9.0.1`: Testing framework
 - `ruff>=0.14.5`: Linter/formatter (dev)
+
+## Testing
+
+```bash
+# Run tests
+pytest
+
+# Run tests with coverage
+pytest --cov=.
+
+# Run specific test file
+pytest tests/test_specific.py
+```
+
+## Documentation
+
+Feature designs follow a structured template in `docs/template/design.md`:
+- User stories with acceptance criteria
+- Technical design with examples
+- Data model and entities
+- Test plan
+
+Domain entities are documented in `docs/entities.md` using the template from `docs/template/entities.md`.
 
 ## Implementation Status
 
 - ✅ FastAPI server with ADK integration
 - ✅ Basic agent registration
+- ✅ Testing framework setup
+- ✅ Documentation templates
 - ⏳ Beancount storage adapter
 - ⏳ Expense tracking agent logic
 - ⏳ Session-specific ledger management
