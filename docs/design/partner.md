@@ -207,59 +207,153 @@ Domain entity representing a travel partner in the TravelCount system.
 - Simple and focused on identifying who paid for expenses
 - Self-validating to prevent invalid state
 
-## Implementation Notes
+## Testing
 
-### Beancount Storage Mapping
+### Add New Partner
 
-Partners (domain entities) are persisted as Beancount accounts using this structure:
+**Scenario:** User adds a partner named "Alice" to the travel session.
+
+**Deliverables:**
+- Partner "Alice" is persisted in the Beancount ledger as `Assets:Travel:Partners:Alice`
+- Open directive is written with current date: `YYYY-MM-DD open Assets:Travel:Partners:Alice USD`
+- Agent responds "Partner 'Alice' has been added."
+
+**Test Coverage:**
+- Unit: `test_create_partner_with_valid_name()`, `test_add_partner_writes_open_directive()`
+- Integration: `test_add_list_remove_partner_flow()`, `test_multiple_partners_persistence()`
+- Acceptance: `test_scenario_add_new_partner()`
+
+### Remove Existing Partner
+
+**Scenario:** User removes a partner named "Alice" from the travel session.
+
+**Deliverables:**
+- Close directive is written with current date: `YYYY-MM-DD close Assets:Travel:Partners:Alice`
+- Partner "Alice" no longer appears in partner list
+- Agent responds "Partner 'Alice' has been removed."
+
+**Test Coverage:**
+- Unit: `test_remove_partner_writes_close_directive()`, `test_list_partners_excludes_closed_partners()`
+- Integration: `test_add_list_remove_partner_flow()`
+- Acceptance: `test_scenario_remove_existing_partner()`
+
+### List All Partners
+
+**Scenario:** User requests to see all active travel partners.
+
+**Deliverables:**
+- Returns all partners with open accounts (excluding closed accounts)
+- Formatted response: "Your travel partners are: Alice, Bob."
+- Empty list response: "You have no travel partners yet."
+
+**Test Coverage:**
+- Unit: `test_list_partners_returns_all_active_partners()`, `test_partners_list_operation_success()`
+- Integration: `test_multiple_partners_persistence()`
+- Acceptance: `test_scenario_list_all_partners()`
+
+### Handle Duplicate Partner
+
+**Scenario:** User attempts to add a partner that already exists.
+
+**Deliverables:**
+- No duplicate entry is created in the ledger
+- Error message returned: "Partner 'Alice' already exists."
+- System maintains data integrity
+
+**Test Coverage:**
+- Unit: `test_add_partner_raises_error_for_duplicate()`, `test_partners_add_handles_duplicate_error()`, `test_partner_exists_returns_true_for_existing_partner()`
+- Acceptance: `test_scenario_add_duplicate_partner()`
+
+### Handle Non-existent Partner
+
+**Scenario:** User attempts to remove a partner that doesn't exist.
+
+**Deliverables:**
+- No changes to the ledger
+- Error message returned: "Partner 'Bob' does not exist."
+- System gracefully handles the error
+
+**Test Coverage:**
+- Unit: `test_remove_partner_raises_error_for_nonexistent()`, `test_partners_remove_handles_nonexistent_error()`, `test_partner_exists_returns_false_for_nonexistent_partner()`
+- Acceptance: `test_scenario_remove_nonexistent_partner()`
+
+### Validate Partner Names
+
+**Scenario:** User provides invalid partner names (empty, special characters, path traversal).
+
+**Deliverables:**
+- Validation rejects empty strings, whitespace-only, special characters (@, $, :), path traversal (../)
+- Error message indicating invalid name format
+- Security: prevents injection attacks and file system manipulation
+
+**Test Coverage:**
+- Unit: `test_validate_name_rejects_empty_string()`, `test_validate_name_rejects_whitespace_only()`, `test_validate_name_rejects_special_characters()`, `test_validate_name_rejects_path_traversal_attempts()`
+
+### Session Isolation
+
+**Scenario:** Multiple travel sessions with different partners.
+
+**Deliverables:**
+- Each session has its own ledger file: `data/[session_id]/index.bean`
+- Partners in session1 are not visible in session2
+- Session data remains isolated and secure
+
+**Test Coverage:**
+- Integration: `test_session_isolation()`
+- Unit: `test_get_ledger_path_returns_correct_path()`, `test_ensure_session_directory_creates_directory()`
+
+### Beancount Integration
+
+**Scenario:** Partner data is correctly persisted and loaded from Beancount files.
+
+**Deliverables:**
+- Open directives use correct format and account structure
+- Close directives properly mark accounts as closed
+- Beancount parser correctly loads partner data
+- Account translation works bidirectionally (entity ↔ account name)
+
+**Test Coverage:**
+- Unit: `test_account_name_translation_to_partner_entity()`, `test_partner_entity_translation_to_account_name()`, `test_add_partner_uses_current_date()`
+- Integration: `test_beancount_file_parsing_integration()`
+
+### Dependency Injection
+
+**Scenario:** Partner tool uses repository protocol for loose coupling.
+
+**Deliverables:**
+- Tool accepts PartnerRepository via dependency injection
+- Can be tested with mock repositories (no file system needed)
+- Implementation can be swapped without changing tool code
+
+**Test Coverage:**
+- Unit: `test_partners_tool_uses_dependency_injection()`
+
+### Test Execution
+
+Run tests using pytest:
+```bash
+pytest                                  # All tests
+pytest --cov=. --cov-report=term-missing  # With coverage
+pytest tests/test_entities/              # Unit tests (entities)
+pytest tests/test_storage/               # Unit tests (storage)
+pytest tests/test_tools/                 # Unit tests (tools)
+pytest tests/test_integration/           # Integration tests
+pytest tests/test_acceptance/            # Acceptance tests
 ```
-Assets:Travel:Partners:[PartnerName]
+
+**Test Structure:**
+```
+tests/
+├── test_entities/test_partner.py        (6 unit tests)
+├── test_storage/test_beancount_adapter.py  (12 unit tests)
+├── test_storage/test_session_manager.py    (7 unit tests)
+├── test_tools/test_partner_tool.py      (10 unit tests)
+├── test_integration/test_partner_operations.py  (4 integration tests)
+├── test_acceptance/test_partner_scenarios.py    (5 acceptance tests)
+└── conftest.py                          (shared fixtures)
 ```
 
-Where:
-- `Assets` - Root account type (one of five: Assets, Liabilities, Equity, Income, Expenses)
-- `Travel` - Subaccount for travel-related assets
-- `Partners` - Subaccount grouping all partner accounts
-- `[PartnerName]` - Individual partner's name (capitalized, no spaces)
-
-**Important:** This is a storage implementation detail. The domain layer works with Partner entities, not Beancount accounts. The BeancountAdapter handles the translation.
-
-### Error Handling
-
-The partner tool should handle these scenarios gracefully:
-- Adding duplicate partner - return error message
-- Removing non-existent partner - return error message
-- Invalid partner names (spaces, special characters) - validate and return error
-- Missing required parameters - return error message
-- File I/O errors - log and return user-friendly error
-
-### Testing Strategy
-
-Following TDD principles, tests should be written for:
-1. **Unit Tests:**
-   - Partner entity validation logic
-   - BeancountAdapter translation between Partner and Beancount accounts
-   - BeancountAdapter read/write operations (mock file system)
-   - Partner tool parameter validation
-
-2. **Integration Tests:**
-   - End-to-end partner add/remove/list operations
-   - SessionManager with real file system (temporary directories)
-   - Beancount file parsing and writing
-
-3. **Acceptance Tests:**
-   - Gherkin scenarios from feature specification
-   - Test against actual ADK agent integration
-
-### Security Considerations
-
-- Validate partner names to prevent directory traversal or injection attacks
-- Sanitize inputs before writing to Beancount files
-- Ensure session isolation (one session cannot access another's ledger)
-- Use ADK's session service for authentication/authorization
-
-### Performance Considerations
-
-- Parse Beancount file only once per operation (cache in memory if needed)
-- Append-only writes to avoid full file rewrites
-- Consider using Beancount's `beancount.loader.load_file()` with caching for large ledgers
+**Success Criteria:**
+- ✅ All 44 tests pass
+- ✅ 100% coverage for domain logic
+- ✅ Test execution time < 30 seconds

@@ -52,4 +52,16 @@ Description of component 2 and its role in the feature.
 
 Description of component 3 and its role in the feature.
 
+## Testing
 
+### [SCENARIO_1]
+
+Description of this scenario covered and deliverables.
+
+### [SCENARIO_2]
+
+Description of this scenario covered and deliverables.
+
+### [SCENARIO_3]
+
+Description of this scenario covered and deliverables.
