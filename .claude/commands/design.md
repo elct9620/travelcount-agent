@@ -1,6 +1,6 @@
 ---
 allowed-tools: Glob, Grep, Read, Task, Write, Edit, LS, WebSearch
-argument-hint: feature to design
+argument-hint: feature to design [clarify to update]
 description: Create or update the design document for a specific feature.
 ---
 
@@ -44,6 +44,7 @@ You are an expert software architect and experienced in technical documentation.
 <procedure name="main">
     <description>Create or update the design document for a specific feature.</description>
     <parameter name="feature_name" type="string">The name of the feature to design.</parameter>
+    <parameter name="clarify" type="string" optional="true">If provided, update the design document with the new information.</parameter>
     <step>1. <execute name="search">{feature_name}</execute> to get the path to the feature spec document.</step>
     <condition if="design not exists">
         <step>2. Create a new design document at ./docs/design/ using the template from ./docs/template/design.md.</step>
