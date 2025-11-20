@@ -1,0 +1,11 @@
+{
+  "rubric": {
+    "rules": [
+      {
+        "name": "Documentation Files",
+        "pattern": "docs/.*\\.md$",
+        "path": "docs/rubrics/document.md"
+      }
+    ]
+  }
+}
