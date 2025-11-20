@@ -1,14 +1,9 @@
 {
-  "extraKnownMarketplaces": {
-    "claudekit": {
-      "source": {
-        "source": "github",
-        "repo": "elct9620/claudekit"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "rubric@claudekit": true
+  "permissions": {
+    "allow": [
+      "Bash(pytest:*)",
+      "Bash(ruff:*)"
+    ]
   },
   "hooks": {
     "PostToolUse": [
@@ -26,5 +21,16 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "rubric@claudekit": true
+  },
+  "extraKnownMarketplaces": {
+    "claudekit": {
+      "source": {
+        "source": "github",
+        "repo": "elct9620/claudekit"
+      }
+    }
   }
 }
