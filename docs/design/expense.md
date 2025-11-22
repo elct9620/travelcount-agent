@@ -236,8 +236,8 @@ Extend the existing BeancountAdapter class to implement ExpenseRepository:
 **Logic:**
 1. Retrieve original expense via get_expense_by_id()
 2. Convert ratios to Decimal if provided (default equal split using Decimal arithmetic per [feature requirements](../features/expense.md#data-model))
-3. Calculate split amounts with appropriate currency precision per [feature requirements](../features/expense.md#data-model):
-   - Determine currency precision (e.g., 2 decimals for USD/EUR, 0 for JPY/KRW)
+3. Calculate split amounts with ROUND_UP strategy per [feature requirements](../features/expense.md#data-model):
+   - All amounts rounded to 2 decimal places maximum for simplicity
    - Calculate each non-payer's share and quantize using ROUND_UP
    - Calculate payer's net amount by difference to absorb any remainder
 4. For each partner, calculate their net position:

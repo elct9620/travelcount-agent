@@ -281,6 +281,64 @@ class TestBeancountAdapterSplitExpense:
         bob_posting = next(p for p in split_txn.postings if "Bob" in p.account)
         assert bob_posting.units.number == Decimal("-50.00")
 
+    def test_split_expense_three_way_with_rounding(
+        self, beancount_adapter: BeancountAdapter
+    ) -> None:
+        """Test 3-way equal split with ROUND_UP strategy for non-payer shares.
+
+        Verifies the rounding example from design doc:
+        Alice paid $10, split equally among Alice, Bob, Charlie (3 people)
+        - Bob's share: 10/3 = 3.333... → rounds up to 3.34
+        - Charlie's share: 10/3 = 3.333... → rounds up to 3.34
+        - Alice's share: 10 - 3.34 - 3.34 = 3.32 (gets remainder)
+        - Alice net: 10 - 3.32 = 6.68 (receives from others)
+        - Bob net: -3.34 (owes)
+        - Charlie net: -3.34 (owes)
+        """
+        alice = Partner("Alice")
+        bob = Partner("Bob")
+        charlie = Partner("Charlie")
+        beancount_adapter.add_partner(alice)
+        beancount_adapter.add_partner(bob)
+        beancount_adapter.add_partner(charlie)
+
+        # Log original expense
+        expense = Expense(
+            date=date(2024, 6, 1),
+            amount=Decimal("10.00"),
+            currency="USD",
+            description="Test 3-way split",
+            paid_by=alice,
+        )
+        expense_id = beancount_adapter.log_expense(expense)
+
+        # Split expense equally among 3 people
+        beancount_adapter.split_expense(expense_id, [alice, bob, charlie])
+
+        # Verify split transaction
+        entries, errors, options = beancount_adapter._load_entries()
+        split_txn = next(
+            e
+            for e in entries
+            if isinstance(e, data.Transaction) and e.meta.get("split-for") == expense_id
+        )
+
+        # Should have 3 postings (all partners have non-zero net amounts)
+        assert len(split_txn.postings) == 3
+
+        alice_posting = next(p for p in split_txn.postings if "Alice" in p.account)
+        bob_posting = next(p for p in split_txn.postings if "Bob" in p.account)
+        charlie_posting = next(p for p in split_txn.postings if "Charlie" in p.account)
+
+        # Verify amounts match design doc example
+        assert alice_posting.units.number == Decimal("6.68")  # Payer gets remainder
+        assert bob_posting.units.number == Decimal("-3.34")  # Rounded up
+        assert charlie_posting.units.number == Decimal("-3.34")  # Rounded up
+
+        # Verify transaction balances to zero
+        total = sum(p.units.number for p in split_txn.postings)
+        assert total == Decimal("0.00")
+
     def test_split_expense_custom_ratios(
         self, beancount_adapter: BeancountAdapter
     ) -> None:

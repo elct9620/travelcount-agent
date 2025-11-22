@@ -14,7 +14,7 @@ principle - the tool defines what it needs, and this adapter provides the implem
 """
 
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_UP
 from pathlib import Path
 
 from beancount import loader
@@ -505,6 +505,11 @@ class BeancountAdapter:
         whom. The payer receives the difference between what they paid and their share,
         while other partners owe their respective shares.
 
+        Uses ROUND_UP strategy for non-payer shares to ensure fair rounding:
+        - Each non-payer's share is rounded up to 2 decimal places maximum
+        - The payer's net amount is calculated by difference, absorbing any remainder
+        - This ensures non-payers never owe less than their fair share
+
         Args:
             expense_id: ID of the expense to split
             partners: List of Partner entities to split among
@@ -517,9 +522,12 @@ class BeancountAdapter:
             ValueError: If ratios length doesn't match partners length
 
         Example:
-            >>> adapter.split_expense("abc123", [alice, bob], [0.6, 0.4])
-            # Alice paid $100, split 60-40 results in:
-            # Alice: +$40 (receives), Bob: -$40 (owes)
+            >>> adapter.split_expense("abc123", [alice, bob, charlie])
+            # Alice paid $10, split equally among 3 people:
+            # Bob's share: 10/3 = 3.333... → rounds up to 3.34
+            # Charlie's share: 10/3 = 3.333... → rounds up to 3.34
+            # Alice's share: 10 - 3.34 - 3.34 = 3.32 (gets remainder)
+            # Result: Alice +6.68, Bob -3.34, Charlie -3.34
         """
         # Retrieve original expense
         original_expense = self.get_expense_by_id(expense_id)
@@ -528,34 +536,57 @@ class BeancountAdapter:
 
         # Calculate split amounts
         if ratios is None:
-            # Equal split
-            ratios = [1.0 / len(partners)] * len(partners)
+            # Equal split using Decimal for precision
+            ratios = [Decimal("1") / Decimal(len(partners))] * len(partners)
         else:
             # Validate ratios
             if len(ratios) != len(partners):
                 raise ValueError("Ratios length must match partners length")
             if not abs(sum(ratios) - 1.0) < 0.0001:  # Allow for floating point errors
                 raise ValueError(f"Ratios must sum to 1.0, got {sum(ratios)}")
+            # Convert ratios to Decimal
+            ratios = [Decimal(str(ratio)) for ratio in ratios]
+
+        # Always round to 2 decimal places maximum for simplicity
+        quantize_value = Decimal("0.01")
 
         # Calculate net positions for each partner
         ledger_path = self._get_ledger_path()
         postings = []
         total_amount = Decimal(str(original_expense.amount))
 
+        # Track non-payer shares to calculate payer's net amount
+        non_payer_shares_sum = Decimal("0")
+
+        # First pass: calculate non-payer shares with ROUND_UP
+        partner_net_amounts = {}
+        payer_partner = None
+
         for partner, ratio in zip(partners, ratios):
-            partner_account = self._partner_to_account_name(partner)
-            share_amount = total_amount * Decimal(str(ratio))
+            share_amount = total_amount * ratio
 
-            # Calculate net position:
-            # - If this partner is the payer: net = amount_paid - share = positive (receives)
-            # - If this partner is not the payer: net = 0 - share = negative (owes)
             if partner.name == original_expense.paid_by.name:
-                net_amount = total_amount - share_amount
+                # Payer: calculate later by difference
+                payer_partner = partner
+                partner_net_amounts[partner.name] = None  # Placeholder
             else:
-                net_amount = -share_amount
+                # Non-payer: round up their share
+                rounded_share = share_amount.quantize(quantize_value, rounding=ROUND_UP)
+                non_payer_shares_sum += rounded_share
+                net_amount = -rounded_share  # They owe this amount
+                partner_net_amounts[partner.name] = net_amount
 
-            # Only create posting if net amount is non-zero
-            if net_amount != Decimal("0"):
+        # Second pass: calculate payer's net amount by difference
+        if payer_partner:
+            payer_share = total_amount - non_payer_shares_sum
+            payer_net_amount = total_amount - payer_share
+            partner_net_amounts[payer_partner.name] = payer_net_amount
+
+        # Create postings for non-zero net amounts
+        for partner in partners:
+            net_amount = partner_net_amounts[partner.name]
+            if net_amount is not None and net_amount != Decimal("0"):
+                partner_account = self._partner_to_account_name(partner)
                 partner_amount = Amount(net_amount, original_expense.currency)
                 postings.append(
                     data.Posting(
