@@ -41,7 +41,6 @@ ruff format .
 - Python >=3.13 required
 - `PORT`: Override default port 8080
 - `VENV_DIR`: Virtual environment directory (defaults to `.venv`)
-- Auto-formatting: PostToolUse hook automatically runs `ruff check --fix` and `ruff format` on Python files after Edit/Write operations
 
 ## Architecture
 
