@@ -24,6 +24,9 @@ When document is created based on other documents or sources, it should include 
 
 For example, the design document should use `[feature](../features/[feature_name].md)` links to reference the features it is based on.
 
+- Do not mention line numbers or specific sections that may change over time.
+- Do not take note on the document, e.g. `xxx.py (existing)`
+
 ## Scoring
 
-Each criteria is binarily scored as either 0 (does not meet expectations) or 1 (meets expectations).
+Each criteria is binarily scored as either 0 (does not meet expectations) or 1 (meets expectations). When over 80% of the criteria are met, the document is considered to have passed the rubric evaluation.
