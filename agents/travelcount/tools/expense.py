@@ -100,6 +100,22 @@ class ExpenseRepository(Protocol):
         """
         ...
 
+    def get_splits(
+        self,
+        date_from: datetime.date | None = None,
+        date_to: datetime.date | None = None,
+    ) -> dict[str, dict[str, any]]:
+        """Retrieve split transactions within optional date range.
+
+        Args:
+            date_from: Start date of range (inclusive). None for no start limit.
+            date_to: End date of range (inclusive). None for no end limit.
+
+        Returns:
+            Dictionary mapping expense_id to partner shares.
+        """
+        ...
+
 
 def log_expense(
     amount: float,
@@ -407,26 +423,17 @@ def _handle_get_expenses(
         # Parse date range
         date_from, date_to = _parse_date_range(range_str)
 
-        # Retrieve expenses
+        # Retrieve expenses and splits
         expenses = repository.get_expenses(date_from, date_to)
+        splits = repository.get_splits(date_from, date_to)
 
         # Format expenses
         if aggregate:
-            # Calculate net amounts per partner
-            expense_data = _aggregate_expenses(expenses)
+            # Calculate total expense per partner
+            expense_data = _aggregate_expenses(expenses, splits)
         else:
-            # Return individual expense details
-            expense_data = [
-                {
-                    "id": expense.id,
-                    "date": expense.date.isoformat(),
-                    "amount": float(expense.amount),
-                    "currency": expense.currency,
-                    "description": expense.description,
-                    "paid_by": expense.paid_by.name,
-                }
-                for expense in expenses
-            ]
+            # Return individual expense items showing each partner's share
+            expense_data = _format_individual_shares(expenses, splits)
 
         return {
             "success": True,
@@ -490,29 +497,107 @@ def _parse_date_range(
     return single_date, single_date
 
 
-def _aggregate_expenses(expenses: list[Expense]) -> list[dict]:
-    """Aggregate expenses to calculate net amounts per partner.
+def _aggregate_expenses(
+    expenses: list[Expense], splits: dict[str, dict[str, any]]
+) -> list[dict]:
+    """Aggregate expenses to calculate total expense per partner.
 
     Args:
         expenses: List of Expense entities.
+        splits: Dictionary mapping expense_id to partner net settlements.
+                Positive = receives from others (payer), Negative = owes to payer
 
     Returns:
-        List of dicts with partner names and net amounts.
+        List of dicts with partner names and their total expense amounts.
+        Format: [{"partner": "Alice", "total_expense": 85.00, "currency": "USD"}, ...]
     """
-    # This is a simplified aggregation that just groups by who paid
-    # A full implementation would need to track splits and calculate
-    # net balances (who owes whom)
     partner_totals: dict[str, dict] = {}
 
     for expense in expenses:
-        partner_name = expense.paid_by.name
-        if partner_name not in partner_totals:
-            partner_totals[partner_name] = {
-                "partner": partner_name,
-                "total_paid": 0.0,
-                "currency": expense.currency,
-            }
+        # Get split information for this expense
+        expense_splits = splits.get(expense.id, {})
 
-        partner_totals[partner_name]["total_paid"] += float(expense.amount)
+        # If no split exists, the entire expense is the payer's
+        if not expense_splits:
+            partner_name = expense.paid_by.name
+            if partner_name not in partner_totals:
+                partner_totals[partner_name] = {
+                    "partner": partner_name,
+                    "total_expense": 0.0,
+                    "currency": expense.currency,
+                }
+            partner_totals[partner_name]["total_expense"] += float(expense.amount)
+        else:
+            # Calculate each partner's share from net settlements
+            for partner_name, net_settlement in expense_splits.items():
+                if partner_name not in partner_totals:
+                    partner_totals[partner_name] = {
+                        "partner": partner_name,
+                        "total_expense": 0.0,
+                        "currency": expense.currency,
+                    }
+
+                # Calculate share:
+                # - If payer (positive settlement): share = amount_paid - settlement_received
+                # - If non-payer (negative settlement): share = abs(settlement_owed)
+                if partner_name == expense.paid_by.name:
+                    # Payer: share = what they paid - what they receive back
+                    share = float(expense.amount) - float(net_settlement)
+                else:
+                    # Non-payer: share = what they owe (absolute value)
+                    share = abs(float(net_settlement))
+
+                partner_totals[partner_name]["total_expense"] += share
 
     return list(partner_totals.values())
+
+
+def _format_individual_shares(
+    expenses: list[Expense], splits: dict[str, dict[str, any]]
+) -> list[dict]:
+    """Format expenses as individual items showing each partner's share.
+
+    Args:
+        expenses: List of Expense entities.
+        splits: Dictionary mapping expense_id to partner net settlements.
+                Positive = receives from others (payer), Negative = owes to payer
+
+    Returns:
+        List of dicts with individual expense shares per partner.
+        Format: [{"description": "Hotel Stay", "shared_by": "Alice", "amount": 50.00}, ...]
+    """
+    result = []
+
+    for expense in expenses:
+        # Get split information for this expense
+        expense_splits = splits.get(expense.id, {})
+
+        # If no split exists, the expense belongs entirely to the payer
+        if not expense_splits:
+            result.append(
+                {
+                    "description": expense.description,
+                    "shared_by": expense.paid_by.name,
+                    "amount": float(expense.amount),
+                }
+            )
+        else:
+            # Create an entry for each partner showing their share
+            for partner_name, net_settlement in expense_splits.items():
+                # Calculate share:
+                # - If payer (positive settlement): share = amount_paid - settlement_received
+                # - If non-payer (negative settlement): share = abs(settlement_owed)
+                if partner_name == expense.paid_by.name:
+                    share = float(expense.amount) - float(net_settlement)
+                else:
+                    share = abs(float(net_settlement))
+
+                result.append(
+                    {
+                        "description": expense.description,
+                        "shared_by": partner_name,
+                        "amount": share,
+                    }
+                )
+
+    return result

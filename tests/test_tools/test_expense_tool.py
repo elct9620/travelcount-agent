@@ -601,8 +601,9 @@ class TestGetExpensesSuccess:
         alice_total = next(e for e in result["expenses"] if e["partner"] == "Alice")
         bob_total = next(e for e in result["expenses"] if e["partner"] == "Bob")
 
-        assert alice_total["total_paid"] == 80.0  # 50 + 30
-        assert bob_total["total_paid"] == 20.0
+        # Note: Without splits, each partner's total_expense equals what they paid
+        assert alice_total["total_expense"] == 80.0  # 50 + 30
+        assert bob_total["total_expense"] == 20.0
 
     def test_get_expenses_empty_result(self, mock_expense_repository: Mock) -> None:
         """Test retrieving expenses when none exist."""
@@ -635,20 +636,15 @@ class TestGetExpensesSuccess:
         assert result["success"] is True
         expense_dict = result["expenses"][0]
 
-        # Verify all required fields are present
-        assert "id" in expense_dict
-        assert "date" in expense_dict
-        assert "amount" in expense_dict
-        assert "currency" in expense_dict
+        # Verify all required fields are present (new format: shared_by instead of id/date/paid_by/currency)
         assert "description" in expense_dict
-        assert "paid_by" in expense_dict
+        assert "shared_by" in expense_dict
+        assert "amount" in expense_dict
 
-        # Verify field types and values
-        assert expense_dict["date"] == "2025-01-15"
-        assert expense_dict["amount"] == 50.0
-        assert expense_dict["currency"] == "USD"
+        # Verify field types and values (new format)
         assert expense_dict["description"] == "Lunch"
-        assert expense_dict["paid_by"] == "Alice"
+        assert expense_dict["shared_by"] == "Alice"
+        assert expense_dict["amount"] == 50.0
 
 
 class TestExpenseToolResponseFormat:

@@ -696,3 +696,66 @@ class BeancountAdapter:
 
         # Expense not found
         return None
+
+    def get_splits(
+        self, date_from: date | None = None, date_to: date | None = None
+    ) -> dict[str, dict[str, Decimal]]:
+        """Retrieve split transactions within optional date range.
+
+        Loads all Transaction directives with split-for metadata and returns
+        a mapping of expense_id to partner shares.
+
+        Args:
+            date_from: Optional start date (inclusive)
+            date_to: Optional end date (inclusive)
+
+        Returns:
+            Dictionary mapping expense_id to partner shares:
+            {
+                "expense_id_1": {"Alice": Decimal("50.00"), "Bob": Decimal("50.00")},
+                "expense_id_2": {"Alice": Decimal("35.00"), "Bob": Decimal("15.00")}
+            }
+
+            Note: Amounts are shown as each partner's share (positive for what they owe,
+            negative values indicate what they receive from the payer).
+
+        Example:
+            >>> splits = adapter.get_splits()
+            >>> splits["abc123"]
+            {"Alice": Decimal("25.00"), "Bob": Decimal("-25.00")}
+        """
+        entries, errors, options = self._load_entries()
+
+        splits = {}
+
+        for entry in entries:
+            # Filter for Transaction directives with split-for metadata
+            if not isinstance(entry, data.Transaction):
+                continue
+            if "split-for" not in entry.meta:
+                continue
+
+            # Apply date range filter
+            if date_from and entry.date < date_from:
+                continue
+            if date_to and entry.date > date_to:
+                continue
+
+            # Extract expense ID
+            expense_id = entry.meta["split-for"]
+
+            # Parse postings to get partner shares
+            if expense_id not in splits:
+                splits[expense_id] = {}
+
+            for posting in entry.postings:
+                # Extract partner name from account (e.g., Assets:Travel:Partners:Alice -> Alice)
+                account_parts = posting.account.split(":")
+                if len(account_parts) >= 4 and account_parts[2] == "Partners":
+                    partner_name = account_parts[3]
+                    # Store the net settlement amount
+                    # Positive = receives from others (payer), Negative = owes to payer
+                    amount = posting.units.number
+                    splits[expense_id][partner_name] = amount
+
+        return splits

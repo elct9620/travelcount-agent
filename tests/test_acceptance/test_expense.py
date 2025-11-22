@@ -384,26 +384,18 @@ class TestScenarioGetAllExpenses:
         expenses = result["expenses"]
         assert len(expenses) == 3
 
-        # Assert: All expense IDs present
-        expense_ids = {exp["id"] for exp in expenses}
-        assert expense_id1 in expense_ids
-        assert expense_id2 in expense_ids
-        assert expense_id3 in expense_ids
-
-        # Assert: Verify expense data is complete
+        # Assert: Verify expense data is complete (new format: shared_by, description, amount)
         breakfast = next(exp for exp in expenses if exp["description"] == "Breakfast")
         assert breakfast["amount"] == 50.0
-        assert breakfast["currency"] == "USD"
-        assert breakfast["paid_by"] == "Alice"
-        assert breakfast["date"] == (date.today() - timedelta(days=2)).isoformat()
+        assert breakfast["shared_by"] == "Alice"
 
         lunch = next(exp for exp in expenses if exp["description"] == "Lunch")
         assert lunch["amount"] == 75.5
-        assert lunch["currency"] == "USD"
+        assert lunch["shared_by"] == "Alice"
 
         dinner = next(exp for exp in expenses if exp["description"] == "Dinner")
         assert dinner["amount"] == 120.0
-        assert dinner["currency"] == "USD"
+        assert dinner["shared_by"] == "Alice"
 
 
 class TestScenarioGetAggregatedExpenses:
@@ -465,15 +457,17 @@ class TestScenarioGetAggregatedExpenses:
         aggregated = result["expenses"]
         assert len(aggregated) >= 2  # At least Alice and Bob
 
-        # Assert: Verify aggregated amounts
-        # Note: Current implementation aggregates by who paid, not net balances
+        # Assert: Verify aggregated amounts (new format: total_expense shows actual share)
         alice_agg = next(exp for exp in aggregated if exp["partner"] == "Alice")
         bob_agg = next(exp for exp in aggregated if exp["partner"] == "Bob")
 
-        assert alice_agg["total_paid"] == 100.0
+        # After splitting expense1 (100.00) equally, Alice's share is 50.00, Bob's is 50.00
+        # Alice paid 100.00 total, her share is 50.00, so total_expense = 50.00
+        # Bob paid 60.00, no splits on that, so his share is 60.00
+        assert alice_agg["total_expense"] == 50.0  # Alice's share after split
         assert alice_agg["currency"] == "USD"
 
-        assert bob_agg["total_paid"] == 60.0
+        assert bob_agg["total_expense"] == 110.0  # Bob's 60.00 + his 50.00 share
         assert bob_agg["currency"] == "USD"
 
 
@@ -535,11 +529,10 @@ class TestScenarioGetExpensesDateRange:
 
         expenses = result["expenses"]
 
-        # Assert: Only June 5 expense in range
+        # Assert: Only June 5 expense in range (new format)
         assert len(expenses) == 1
         assert expenses[0]["description"] == "June 5 expense"
-        assert expenses[0]["id"] == expense_id2
-        assert expenses[0]["date"] == "2024-06-05"
+        assert expenses[0]["shared_by"] == "Alice"
         assert expenses[0]["amount"] == 50.0
 
     def test_get_expenses_date_range_inclusive(
@@ -580,14 +573,14 @@ class TestScenarioGetExpensesDateRange:
             repository=beancount_adapter,
         )
 
-        # Assert: Both expenses included
+        # Assert: Both expenses included (new format checks descriptions instead of IDs)
         assert result["success"] is True
         expenses = result["expenses"]
         assert len(expenses) == 2
 
-        expense_ids = {exp["id"] for exp in expenses}
-        assert id1 in expense_ids
-        assert id2 in expense_ids
+        descriptions = {exp["description"] for exp in expenses}
+        assert "Start date" in descriptions
+        assert "End date" in descriptions
 
 
 class TestScenarioLogExpenseNegativeAmount:

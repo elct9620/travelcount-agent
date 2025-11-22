@@ -130,6 +130,7 @@ def mock_expense_repository() -> Mock:
     repository.get_expenses = Mock(return_value=[])
     repository.get_expense_by_id = Mock(return_value=None)
     repository.list_partners = Mock(return_value=[])
+    repository.get_splits = Mock(return_value={})
     return repository
 
 
