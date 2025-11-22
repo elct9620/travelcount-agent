@@ -225,23 +225,35 @@ Extend the existing BeancountAdapter class to implement ExpenseRepository:
 
 #### split_expense implementation
 
-**Beancount format (equal split):**
+**Beancount format (equal split between Alice and Bob, where Alice paid $50):**
 ```beancount
 2024-06-01 * "Split: Lunch at Cafe"
   split-for: "abc123"
-  Assets:Travel:Partners:Alice   -25.00 USD
-  Assets:Travel:Partners:Bob      25.00 USD
+  Assets:Travel:Partners:Alice    25.00 USD
+  Assets:Travel:Partners:Bob     -25.00 USD
 ```
 
 **Logic:**
 1. Retrieve original expense via get_expense_by_id()
 2. Calculate split amounts based on ratios (default equal split)
-3. Create Transaction directive with same date as original
-4. Add metadata: split-for (references expense ID)
-5. Create postings:
-   - Credit payer's partner account (negative amount)
-   - Debit other partners' accounts (positive amounts per ratio)
-6. Append transaction to ledger
+3. For each partner, calculate their net position:
+   - If partner is the payer: amount owed TO them = total - their share
+   - If partner is not the payer: amount owed BY them = their share (negative)
+4. Create Transaction directive with same date as original
+5. Add metadata: split-for (references expense ID)
+6. Create postings only for non-zero net amounts:
+   - Partners who owe money: debit (negative amount)
+   - Payer receives: credit (positive amount for what others owe)
+7. Append transaction to ledger
+
+**Example calculations:**
+- Alice paid $100, split 70-30 between Alice and Bob
+  - Alice's share: $70, Bob's share: $30
+  - Alice net: $100 (paid) - $70 (owes) = +$30 (Bob owes Alice)
+  - Bob net: $0 (paid) - $30 (owes) = -$30 (Bob owes Alice)
+  - Result: `Alice +30 USD, Bob -30 USD`
+
+**Important:** The split transaction only records the settlement/transfer amounts, not the full expense redistribution. This avoids double-posting to the payer's account.
 
 #### get_expenses implementation
 

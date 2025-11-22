@@ -270,18 +270,16 @@ class TestBeancountAdapterSplitExpense:
 
         assert split_txn.meta["split-for"] == expense_id
         assert split_txn.narration == "Split: Shared dinner"
-        # Should have 3 postings: Alice credit (-100), Alice debit (+50), Bob debit (+50)
-        assert len(split_txn.postings) == 3
+        # Should have 2 postings: Alice receives net (+50), Bob owes net (-50)
+        assert len(split_txn.postings) == 2
 
-        # Check Alice appears twice (once for credit, once for her share)
-        alice_postings = [p for p in split_txn.postings if "Alice" in p.account]
-        assert len(alice_postings) == 2
-        alice_amounts = sorted([p.units.number for p in alice_postings])
-        assert alice_amounts == [Decimal("-100.00"), Decimal("50.000")]
+        # Check Alice's net position (paid $100, owes $50, net +$50)
+        alice_posting = next(p for p in split_txn.postings if "Alice" in p.account)
+        assert alice_posting.units.number == Decimal("50.00")
 
-        # Check Bob's debit (should get +50)
+        # Check Bob's net position (paid $0, owes $50, net -$50)
         bob_posting = next(p for p in split_txn.postings if "Bob" in p.account)
-        assert bob_posting.units.number == Decimal("50.000")
+        assert bob_posting.units.number == Decimal("-50.00")
 
     def test_split_expense_custom_ratios(
         self, beancount_adapter: BeancountAdapter
@@ -309,7 +307,10 @@ class TestBeancountAdapterSplitExpense:
             expense_id, [alice, bob, charlie], [0.5, 0.3, 0.2]
         )
 
-        # Verify split amounts
+        # Verify split amounts using net settlement calculation
+        # Alice paid $100, owes $50 (50%), net = +$50
+        # Bob paid $0, owes $30 (30%), net = -$30
+        # Charlie paid $0, owes $20 (20%), net = -$20
         entries, errors, options = beancount_adapter._load_entries()
         split_txn = next(
             e
@@ -317,13 +318,16 @@ class TestBeancountAdapterSplitExpense:
             if isinstance(e, data.Transaction) and e.meta.get("split-for") == expense_id
         )
 
+        # Should have 3 postings (all partners have non-zero net amounts)
+        assert len(split_txn.postings) == 3
+
         alice_posting = next(p for p in split_txn.postings if "Alice" in p.account)
         bob_posting = next(p for p in split_txn.postings if "Bob" in p.account)
         charlie_posting = next(p for p in split_txn.postings if "Charlie" in p.account)
 
-        assert alice_posting.units.number == Decimal("-100.00")
-        assert bob_posting.units.number == Decimal("30.00")
-        assert charlie_posting.units.number == Decimal("20.00")
+        assert alice_posting.units.number == Decimal("50.00")
+        assert bob_posting.units.number == Decimal("-30.00")
+        assert charlie_posting.units.number == Decimal("-20.00")
 
     def test_split_expense_raises_for_nonexistent_expense(
         self, beancount_adapter: BeancountAdapter

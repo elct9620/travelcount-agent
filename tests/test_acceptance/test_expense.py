@@ -232,29 +232,21 @@ class TestScenarioSplitExpenseEqual:
         assert "Split:" in split_txn.narration
         assert "Hotel room" in split_txn.narration
 
-        # Assert: Verify split amounts balance correctly
-        assert len(split_txn.postings) == 3  # Alice refund + Alice share + Bob share
+        # Assert: Verify split amounts use net settlement calculation
+        # Alice paid $100, owes $50 (50%), net = +$50 (receives)
+        # Bob paid $0, owes $50 (50%), net = -$50 (owes)
+        assert len(split_txn.postings) == 2  # Only net amounts
 
-        # Alice gets refunded the full amount (negative posting)
-        alice_refund = next(
-            p for p in split_txn.postings if "Alice" in p.account and p.units.number < 0
-        )
-        assert alice_refund.units.number == Decimal("-100.00")
-        assert alice_refund.units.currency == "USD"
+        alice_posting = next(p for p in split_txn.postings if "Alice" in p.account)
+        bob_posting = next(p for p in split_txn.postings if "Bob" in p.account)
 
-        # Alice and Bob each get their 50% share (positive postings)
-        alice_share = next(
-            p for p in split_txn.postings if "Alice" in p.account and p.units.number > 0
-        )
-        bob_share = next(p for p in split_txn.postings if "Bob" in p.account)
+        assert alice_posting.units.number == Decimal("50.00")  # Alice receives net
+        assert alice_posting.units.currency == "USD"
 
-        assert alice_share.units.number == Decimal("50.00")  # Alice's 50% share
-        assert alice_share.units.currency == "USD"
+        assert bob_posting.units.number == Decimal("-50.00")  # Bob owes net
+        assert bob_posting.units.currency == "USD"
 
-        assert bob_share.units.number == Decimal("50.00")  # Bob's 50% share
-        assert bob_share.units.currency == "USD"
-
-        # Total should be: Alice -100 (refund) + Alice 50 (share) + Bob 50 (share) = 0
+        # Total should balance to zero
         total = sum(p.units.number for p in split_txn.postings)
         assert total == Decimal("0.00")
 
@@ -313,26 +305,20 @@ class TestScenarioSplitExpenseRatios:
         split_txn = split_transactions[0]
         assert split_txn.meta["split-for"] == expense_id
 
-        # Assert: Verify split amounts respect ratios
-        assert len(split_txn.postings) == 4  # Alice refund + Alice/Bob/Charlie shares
+        # Assert: Verify split amounts respect ratios using net settlement
+        # Alice paid $90, owes $45 (50%), net = +$45 (receives)
+        # Bob paid $0, owes $27 (30%), net = -$27 (owes)
+        # Charlie paid $0, owes $18 (20%), net = -$18 (owes)
+        assert len(split_txn.postings) == 3  # Net amounts for each partner
 
-        alice_posting = next(
-            p for p in split_txn.postings if "Alice" in p.account and p.units.number < 0
-        )
-        assert alice_posting.units.number == Decimal("-90.00")  # Full refund
+        # Verify each partner's net position
+        alice_posting = next(p for p in split_txn.postings if "Alice" in p.account)
+        bob_posting = next(p for p in split_txn.postings if "Bob" in p.account)
+        charlie_posting = next(p for p in split_txn.postings if "Charlie" in p.account)
 
-        # Find share postings (positive amounts)
-        share_postings = [p for p in split_txn.postings if p.units.number > 0]
-        assert len(share_postings) == 3
-
-        # Verify each partner's share matches their ratio
-        alice_share = next(p for p in share_postings if "Alice" in p.account)
-        bob_share = next(p for p in share_postings if "Bob" in p.account)
-        charlie_share = next(p for p in share_postings if "Charlie" in p.account)
-
-        assert alice_share.units.number == Decimal("45.00")  # 90 * 0.5
-        assert bob_share.units.number == Decimal("27.00")  # 90 * 0.3
-        assert charlie_share.units.number == Decimal("18.00")  # 90 * 0.2
+        assert alice_posting.units.number == Decimal("45.00")  # Net: 90 - 45
+        assert bob_posting.units.number == Decimal("-27.00")  # Net: 0 - 27
+        assert charlie_posting.units.number == Decimal("-18.00")  # Net: 0 - 18
 
         # Assert: All amounts sum to zero (balanced transaction)
         total = sum(p.units.number for p in split_txn.postings)

@@ -501,9 +501,9 @@ class BeancountAdapter:
     ) -> None:
         """Split an expense among partners.
 
-        Creates a Transaction directive that redistributes the expense amount
-        among the specified partners. The original payer's account is credited
-        (negative amount) and other partners' accounts are debited (positive amounts).
+        Creates a Transaction directive with net settlement amounts showing who owes
+        whom. The payer receives the difference between what they paid and their share,
+        while other partners owe their respective shares.
 
         Args:
             expense_id: ID of the expense to split
@@ -518,6 +518,8 @@ class BeancountAdapter:
 
         Example:
             >>> adapter.split_expense("abc123", [alice, bob], [0.6, 0.4])
+            # Alice paid $100, split 60-40 results in:
+            # Alice: +$40 (receives), Bob: -$40 (owes)
         """
         # Retrieve original expense
         original_expense = self.get_expense_by_id(expense_id)
@@ -535,42 +537,36 @@ class BeancountAdapter:
             if not abs(sum(ratios) - 1.0) < 0.0001:  # Allow for floating point errors
                 raise ValueError(f"Ratios must sum to 1.0, got {sum(ratios)}")
 
-        # Create split transaction
+        # Calculate net positions for each partner
         ledger_path = self._get_ledger_path()
         postings = []
+        total_amount = Decimal(str(original_expense.amount))
 
-        # Credit the original payer (negative amount)
-        payer_account = self._partner_to_account_name(original_expense.paid_by)
-        payer_amount = Amount(
-            -Decimal(str(original_expense.amount)), original_expense.currency
-        )
-        postings.append(
-            data.Posting(
-                account=payer_account,
-                units=payer_amount,
-                cost=None,
-                price=None,
-                flag=None,
-                meta={},
-            )
-        )
-
-        # Debit each partner their share (positive amounts)
         for partner, ratio in zip(partners, ratios):
             partner_account = self._partner_to_account_name(partner)
-            split_amount = Decimal(str(original_expense.amount)) * Decimal(str(ratio))
-            partner_amount = Amount(split_amount, original_expense.currency)
+            share_amount = total_amount * Decimal(str(ratio))
 
-            postings.append(
-                data.Posting(
-                    account=partner_account,
-                    units=partner_amount,
-                    cost=None,
-                    price=None,
-                    flag=None,
-                    meta={},
+            # Calculate net position:
+            # - If this partner is the payer: net = amount_paid - share = positive (receives)
+            # - If this partner is not the payer: net = 0 - share = negative (owes)
+            if partner.name == original_expense.paid_by.name:
+                net_amount = total_amount - share_amount
+            else:
+                net_amount = -share_amount
+
+            # Only create posting if net amount is non-zero
+            if net_amount != Decimal("0"):
+                partner_amount = Amount(net_amount, original_expense.currency)
+                postings.append(
+                    data.Posting(
+                        account=partner_account,
+                        units=partner_amount,
+                        cost=None,
+                        price=None,
+                        flag=None,
+                        meta={},
+                    )
                 )
-            )
 
         # Create Transaction directive
         transaction = data.Transaction(
