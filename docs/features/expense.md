@@ -74,6 +74,14 @@ After splitting an expense, the split details will be recorded as transfer entri
 
 Split amounts are displayed with appropriate precision for the currency (e.g., 2 decimal places for USD/EUR, whole numbers for JPY/KRW).
 
+## Validation
+
+Each operation should produce a valid Beancount file. The following is policies to ensure ledger correctness:
+
+- When new currency is used, update the Beancount file to include all used currencies.
+- If missing the expense account, add it automatically.
+- If missing the partner account, return an error.
+
 ## Scenarios
 
 Following are scenarios in Gherkin format to illustrate how the agent handles expense logging and splitting.

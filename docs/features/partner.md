@@ -30,6 +30,16 @@ The partner data is represented as Beancount accounts saved in the session's Bea
 1970-01-01 open Assets:Travel:Partners:Bob USD
 ```
 
+## Validation
+
+Each operation should produce a valid Beancount file. The following is policies to ensure ledger correctness:
+
+- Adding a partner that already exists should return an error.
+- Adding a partner back remove "close" directive instead of opening a new account.
+- Removing a partner can use "close" directive to close the account.
+- Removing a partner already has transactions should return an error.
+- Renaming partners is allowed by replacing the account name in all transactions.
+
 ## Scenarios
 
 Following are scenarios in Gherkin format to illustrate how the agent handles partner operations.
