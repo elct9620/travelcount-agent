@@ -41,9 +41,16 @@ def get_expenses(range: str = "all", aggregate: bool = True) -> list:
     Args:
         range (str, optional): The time range for the expenses to retrieve. Defaults to "all".
         aggregate (bool, optional): Whether to aggregate expenses by partner. Defaults to True.
+            - If True: Returns total expense amount for each partner (their share after splits)
+            - If False: Returns expense items showing each partner's share per expense
+                       (e.g., "Hotel shared by Bob: $50", "Hotel shared by Alice: $50")
 
     Returns:
-        list: A list of dictionaries, each representing an expense.
+        list: A list of dictionaries, each representing an expense or aggregated partner total.
+            When aggregate=True:
+                [{"partner": "Alice", "total_expense": 85.00, "currency": "USD"}, ...]
+            When aggregate=False:
+                [{"description": "Hotel Stay", "shared_by": "Alice", "amount": 50.00}, ...]
     """
 ```
 
@@ -99,7 +106,7 @@ Feature: Manage travel expenses
         When the user inputs "Split the 'City Tour' expense between Alice and Bob in a 70-30 ratio"
         Then the agent should respond "Expense 'City Tour' has been split between Alice and Bob in a 70-30 ratio."
 
-    Scenario: Retrieve all expenses for the session
+    Scenario: Retrieve all expenses for the session (showing individual shares)
         Given multiple expenses logged for the "Summer Vacation" session
           | Description       | Amount | Paid By | Date       |
           | Hotel Stay        | 100.00 | Alice   | 2024-06-01 |
@@ -109,7 +116,7 @@ Feature: Manage travel expenses
           | Hotel Stay    | Alice, Bob    | 50-50 |
           | Lunch at Cafe | Alice, Bob    | 70-30 |
         When the user "Alice" inputs "Show me all my expenses for the 'Summer Vacation' trip"
-        Then the agent should respond with a list of all expenses logged for the session.
+        Then the agent should respond with a list showing Alice's share of each expense.
           | Description   | Amount | Paid By |
           | Hotel Stay    | 50.00  | Alice   |
           | Lunch at Cafe | 35.00  | Alice   |

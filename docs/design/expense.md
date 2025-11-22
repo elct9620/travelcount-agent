@@ -6,14 +6,14 @@ This document outlines the design to implement the [Expense Tracking](../feature
 
 In this feature, following files will be created or modified:
 
-- `agents/travelcount/entities/expense.py` - Expense domain entity
-- `agents/travelcount/tools/expense.py` - Expense tool functions and ExpenseRepository protocol
-- `agents/travelcount/storage/beancount_adapter.py` - Extended to implement ExpenseRepository
-- `agents/travelcount/agent.py` - Register expense tool with session-aware wrapper
-- `tests/test_entities/test_expense.py` - Unit tests for Expense entity
-- `tests/test_tools/test_expense.py` - Unit tests for expense tools
-- `tests/test_storage/test_beancount_adapter_expense.py` - Unit tests for expense storage
-- `tests/test_acceptance/test_expense.py` - Acceptance tests from feature scenarios
+- `agents/travelcount/entities/expense.py` - Expense domain entity (existing)
+- `agents/travelcount/tools/expense.py` - Expense tool functions and ExpenseRepository protocol (modify to improve aggregation logic)
+- `agents/travelcount/storage/beancount_adapter.py` - Extended to implement ExpenseRepository (existing)
+- `agents/travelcount/agent.py` - Register expense tool with session-aware wrapper (existing)
+- `tests/test_entities/test_expense.py` - Unit tests for Expense entity (existing)
+- `tests/test_tools/test_expense.py` - Unit tests for expense tools (add tests for improved aggregation)
+- `tests/test_storage/test_beancount_adapter_expense.py` - Unit tests for expense storage (existing)
+- `tests/test_acceptance/test_expense.py` - Acceptance tests from feature scenarios (existing)
 
 ## Entities
 
@@ -187,14 +187,25 @@ def get_expenses(
 **Logic:**
 1. Parse range parameter to date_from/date_to
 2. Call repository.get_expenses(date_from, date_to)
-3. If aggregate=True, calculate net amounts per partner from splits
-4. Format as list of dictionaries
-5. Return expense list
+3. Load split transaction data from Beancount ledger (transactions with "split-for" metadata)
+4. Calculate each partner's share based on splits
+5. If aggregate=True:
+   - Group by partner
+   - Calculate total_expense for each partner (sum of their shares)
+   - Return: `[{"partner": "Alice", "total_expense": 85.00, "currency": "USD"}, ...]`
+6. If aggregate=False:
+   - For each expense, create entries for each partner showing their share
+   - Return: `[{"description": "Hotel Stay", "shared_by": "Alice", "amount": 50.00}, ...]`
+7. Return expense list
 
 **Range parsing:**
 - "all": No date filter
 - "YYYY-MM-DD": Single date
 - "YYYY-MM-DD to YYYY-MM-DD": Date range
+
+**Return format per feature spec:**
+- When `aggregate=True`: `[{"partner": "Alice", "total_expense": 85.00, "currency": "USD"}, ...]`
+- When `aggregate=False`: `[{"description": "Hotel Stay", "shared_by": "Alice", "amount": 50.00}, ...]`
 
 ### BeancountAdapter Extension
 
@@ -281,6 +292,8 @@ Ratio split:
 4. Parse each transaction to construct Expense entities
 5. Return list of Expense objects
 
+**Note:** Split information is stored separately in Beancount transactions with "split-for" metadata. The tool layer (`_handle_get_expenses`) will need to load both expenses and splits from the ledger to calculate each partner's actual expense amounts.
+
 #### get_expense_by_id implementation
 
 **Logic:**
@@ -365,8 +378,20 @@ root_agent = Agent(
 
 **Coverage:**
 - BeancountAdapter.get_expenses() parses all expense transactions
-- Returns complete list of Expense entities
+- Non-aggregated view shows individual expenses with split details per partner
+- Each expense displays who paid and each partner's actual share
 - Correctly filters out non-expense transactions
+
+**Expected behavior per feature spec (lines 109-122, 153-165):**
+When retrieving expenses without aggregation (`aggregate=False`), return individual expense items showing each partner's share:
+```json
+[
+  {"description": "Hotel Stay", "shared_by": "Alice", "amount": 50.00},
+  {"description": "Hotel Stay", "shared_by": "Bob", "amount": 50.00},
+  {"description": "Lunch at Cafe", "shared_by": "Alice", "amount": 35.00},
+  {"description": "Lunch at Cafe", "shared_by": "Bob", "amount": 15.00}
+]
+```
 
 ### Scenario: Retrieve aggregated expenses for a partner
 
@@ -374,8 +399,19 @@ root_agent = Agent(
 
 **Coverage:**
 - Aggregation logic calculates net amounts per partner
-- Combines original expenses and split amounts
-- Returns correct totals
+- Combines original expenses (what they paid) and split amounts (what they owe)
+- Returns partner summary with total_paid, total_expense, and net_settlement
+- Net settlement = total_paid - total_expense (positive means owed TO them, negative means they owe)
+
+**Expected behavior per feature spec (lines 124-134):**
+When retrieving expenses with aggregation (`aggregate=True`), return partner totals:
+```json
+[
+  {"partner": "Alice", "total_expense": 85.00, "currency": "USD"},
+  {"partner": "Bob", "total_expense": 65.00, "currency": "USD"}
+]
+```
+The `total_expense` field shows each partner's total share across all expenses after splits.
 
 ### Scenario: Retrieve expenses within a specific date range
 
