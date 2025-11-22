@@ -1,4 +1,4 @@
-"""Beancount adapter implementing PartnerRepository protocol.
+"""Beancount adapter implementing PartnerRepository and ExpenseRepository protocols.
 
 This module provides a concrete implementation of the PartnerRepository protocol
 (defined in agents.travelcount.tools.partner) using Beancount as the storage backend.
@@ -6,15 +6,20 @@ It translates between Partner domain entities and Beancount account directives,
 managing partner data through Open and Close directives in the session-specific
 ledger file.
 
+The adapter also implements ExpenseRepository protocol for expense tracking,
+managing expenses as Transaction directives with metadata for tracking and splitting.
+
 The protocol is defined by the consumer (partner tool) following dependency inversion
 principle - the tool defines what it needs, and this adapter provides the implementation.
 """
 
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 from beancount import loader
 from beancount.core import data
+from beancount.core.amount import Amount
 from beancount.parser import printer
 
 from ..entities.partner import Partner
@@ -22,22 +27,29 @@ from .session_manager import SessionManager
 
 
 class BeancountAdapter:
-    """Beancount storage adapter implementing PartnerRepository protocol.
+    """Beancount storage adapter implementing PartnerRepository and ExpenseRepository protocols.
 
     This adapter translates Partner entities to/from Beancount account directives.
     Partners are stored as Beancount accounts with the pattern:
     Assets:Travel:Partners:[PartnerName]
 
+    Expenses are stored as Transaction directives with:
+    - expense-id metadata for tracking
+    - Debit to Expenses:Travel:[Category]
+    - Credit to Assets:Travel:Partners:[PaidBy]
+
     The adapter uses:
     - Open directives to add new partners
     - Close directives to remove existing partners
-    - Beancount's loader to parse and read existing partners
+    - Transaction directives for expense logging and splits
+    - Beancount's loader to parse and read existing data
 
     Attributes:
         session_manager: SessionManager instance for accessing ledger files
     """
 
     ACCOUNT_PREFIX = "Assets:Travel:Partners:"
+    EXPENSE_PREFIX = "Expenses:Travel:"
     CURRENCY = "USD"
 
     def __init__(self, session_manager: SessionManager) -> None:
@@ -285,3 +297,375 @@ class BeancountAdapter:
         except ValueError:
             # If Partner name validation fails, partner doesn't exist
             return False
+
+    # Expense tracking methods (ExpenseRepository protocol implementation)
+
+    def _infer_category(self, description: str) -> str:
+        """Infer expense category from description keywords.
+
+        Searches description for common expense keywords to categorize the expense.
+        Returns a Beancount account suffix for the category.
+
+        Args:
+            description: Expense description to analyze
+
+        Returns:
+            Category string (Food, Transport, Hotel, Misc)
+
+        Example:
+            >>> adapter._infer_category("Lunch at cafe")
+            'Food'
+            >>> adapter._infer_category("Taxi to airport")
+            'Transport'
+        """
+        description_lower = description.lower()
+
+        # Food keywords
+        food_keywords = [
+            "lunch",
+            "dinner",
+            "breakfast",
+            "meal",
+            "restaurant",
+            "cafe",
+            "coffee",
+            "food",
+            "snack",
+        ]
+        if any(keyword in description_lower for keyword in food_keywords):
+            return "Food"
+
+        # Transport keywords
+        transport_keywords = [
+            "taxi",
+            "uber",
+            "lyft",
+            "bus",
+            "train",
+            "flight",
+            "transport",
+            "metro",
+            "subway",
+            "airport",
+        ]
+        if any(keyword in description_lower for keyword in transport_keywords):
+            return "Transport"
+
+        # Hotel keywords
+        hotel_keywords = ["hotel", "accommodation", "airbnb", "hostel", "lodge"]
+        if any(keyword in description_lower for keyword in hotel_keywords):
+            return "Hotel"
+
+        # Default to Misc
+        return "Misc"
+
+    def _parse_transaction_to_expense(self, transaction: data.Transaction):
+        """Convert a Beancount Transaction directive to an Expense entity.
+
+        Parses a transaction directive with expense-id metadata and constructs
+        an Expense entity from its postings.
+
+        Args:
+            transaction: Transaction directive to parse
+
+        Returns:
+            Expense entity parsed from transaction
+
+        Raises:
+            ValueError: If transaction doesn't have expense-id metadata
+            ValueError: If transaction structure doesn't match expected format
+            ValueError: If parsed expense ID doesn't match stored expense-id
+        """
+        # Import here to avoid circular dependency
+        from ..entities.expense import Expense
+
+        # Verify transaction has expense-id metadata
+        if "expense-id" not in transaction.meta:
+            raise ValueError("Transaction does not have expense-id metadata")
+
+        stored_expense_id = transaction.meta["expense-id"]
+
+        # Find the expense and partner postings
+        expense_posting = None
+        partner_posting = None
+
+        for posting in transaction.postings:
+            if posting.account.startswith(self.EXPENSE_PREFIX):
+                expense_posting = posting
+            elif posting.account.startswith(self.ACCOUNT_PREFIX):
+                partner_posting = posting
+
+        if not expense_posting or not partner_posting:
+            raise ValueError("Transaction does not have expected expense structure")
+
+        # Extract expense details
+        amount = expense_posting.units.number
+        currency = expense_posting.units.currency
+        description = transaction.narration
+        expense_date = transaction.date
+
+        # Extract partner who paid
+        partner_name = partner_posting.account[len(self.ACCOUNT_PREFIX) :]
+        paid_by = Partner(partner_name)
+
+        # Create Expense entity (ID will be auto-generated)
+        expense = Expense(
+            date=expense_date,
+            amount=amount,
+            currency=currency,
+            description=description,
+            paid_by=paid_by,
+        )
+
+        # Verify the generated ID matches the stored ID
+        if expense.id != stored_expense_id:
+            raise ValueError(
+                f"Generated expense ID '{expense.id}' does not match "
+                f"stored expense-id '{stored_expense_id}'"
+            )
+
+        return expense
+
+    def log_expense(self, expense, default_partner=None) -> str:
+        """Log an expense to the ledger.
+
+        Creates a Transaction directive with the expense details and appends it
+        to the ledger file. The transaction includes:
+        - expense-id metadata for tracking
+        - Debit posting to Expenses:Travel:[Category]
+        - Credit posting to Assets:Travel:Partners:[PaidBy]
+
+        Args:
+            expense: Expense entity to log
+            default_partner: Optional default partner (unused, for protocol compatibility)
+
+        Returns:
+            The expense ID
+
+        Example:
+            >>> from entities.expense import Expense
+            >>> expense = Expense(...)
+            >>> expense_id = adapter.log_expense(expense)
+        """
+        # Import here to avoid circular dependency
+
+        # Infer category from description
+        category = self._infer_category(expense.description)
+        expense_account = f"{self.EXPENSE_PREFIX}{category}"
+        partner_account = self._partner_to_account_name(expense.paid_by)
+
+        ledger_path = self._get_ledger_path()
+
+        # Create Transaction directive
+        transaction = data.Transaction(
+            meta={
+                "filename": str(ledger_path),
+                "lineno": 0,
+                "expense-id": expense.id,
+            },
+            date=expense.date,
+            flag="*",
+            payee=None,
+            narration=expense.description,
+            tags=set(),
+            links=set(),
+            postings=[
+                # Debit: Expenses account
+                data.Posting(
+                    account=expense_account,
+                    units=Amount(Decimal(str(expense.amount)), expense.currency),
+                    cost=None,
+                    price=None,
+                    flag=None,
+                    meta={},
+                ),
+                # Credit: Partner account (balancing posting, no amount)
+                data.Posting(
+                    account=partner_account,
+                    units=None,  # Beancount will infer the balancing amount
+                    cost=None,
+                    price=None,
+                    flag=None,
+                    meta={},
+                ),
+            ],
+        )
+
+        # Write transaction to ledger
+        self._write_directive(transaction)
+
+        return expense.id
+
+    def split_expense(
+        self, expense_id: str, partners: list, ratios: list[float] | None = None
+    ) -> None:
+        """Split an expense among partners.
+
+        Creates a Transaction directive that redistributes the expense amount
+        among the specified partners. The original payer's account is credited
+        (negative amount) and other partners' accounts are debited (positive amounts).
+
+        Args:
+            expense_id: ID of the expense to split
+            partners: List of Partner entities to split among
+            ratios: Optional list of split ratios (must sum to 1.0). If None,
+                   splits equally among all partners.
+
+        Raises:
+            ValueError: If expense not found
+            ValueError: If ratios don't sum to 1.0
+            ValueError: If ratios length doesn't match partners length
+
+        Example:
+            >>> adapter.split_expense("abc123", [alice, bob], [0.6, 0.4])
+        """
+        # Retrieve original expense
+        original_expense = self.get_expense_by_id(expense_id)
+        if not original_expense:
+            raise ValueError(f"Expense with ID '{expense_id}' not found")
+
+        # Calculate split amounts
+        if ratios is None:
+            # Equal split
+            ratios = [1.0 / len(partners)] * len(partners)
+        else:
+            # Validate ratios
+            if len(ratios) != len(partners):
+                raise ValueError("Ratios length must match partners length")
+            if not abs(sum(ratios) - 1.0) < 0.0001:  # Allow for floating point errors
+                raise ValueError(f"Ratios must sum to 1.0, got {sum(ratios)}")
+
+        # Create split transaction
+        ledger_path = self._get_ledger_path()
+        postings = []
+
+        # Credit the original payer (negative amount)
+        payer_account = self._partner_to_account_name(original_expense.paid_by)
+        payer_amount = Amount(
+            -Decimal(str(original_expense.amount)), original_expense.currency
+        )
+        postings.append(
+            data.Posting(
+                account=payer_account,
+                units=payer_amount,
+                cost=None,
+                price=None,
+                flag=None,
+                meta={},
+            )
+        )
+
+        # Debit each partner their share (positive amounts)
+        for partner, ratio in zip(partners, ratios):
+            partner_account = self._partner_to_account_name(partner)
+            split_amount = Decimal(str(original_expense.amount)) * Decimal(str(ratio))
+            partner_amount = Amount(split_amount, original_expense.currency)
+
+            postings.append(
+                data.Posting(
+                    account=partner_account,
+                    units=partner_amount,
+                    cost=None,
+                    price=None,
+                    flag=None,
+                    meta={},
+                )
+            )
+
+        # Create Transaction directive
+        transaction = data.Transaction(
+            meta={
+                "filename": str(ledger_path),
+                "lineno": 0,
+                "split-for": expense_id,
+            },
+            date=original_expense.date,
+            flag="*",
+            payee=None,
+            narration=f"Split: {original_expense.description}",
+            tags=set(),
+            links=set(),
+            postings=postings,
+        )
+
+        # Write transaction to ledger
+        self._write_directive(transaction)
+
+    def get_expenses(
+        self, date_from: date | None = None, date_to: date | None = None
+    ) -> list:
+        """Retrieve expenses within optional date range.
+
+        Loads all Transaction directives with expense-id metadata and optionally
+        filters by date range.
+
+        Args:
+            date_from: Optional start date (inclusive)
+            date_to: Optional end date (inclusive)
+
+        Returns:
+            List of Expense entities matching the criteria
+
+        Example:
+            >>> expenses = adapter.get_expenses()
+            >>> recent = adapter.get_expenses(date_from=date(2024, 6, 1))
+        """
+        entries, errors, options = self._load_entries()
+
+        expenses = []
+
+        for entry in entries:
+            # Filter for Transaction directives with expense-id metadata
+            if not isinstance(entry, data.Transaction):
+                continue
+            if "expense-id" not in entry.meta:
+                continue
+
+            # Apply date range filter
+            if date_from and entry.date < date_from:
+                continue
+            if date_to and entry.date > date_to:
+                continue
+
+            # Parse transaction to Expense entity
+            try:
+                expense = self._parse_transaction_to_expense(entry)
+                expenses.append(expense)
+            except (ValueError, KeyError):
+                # Skip transactions that can't be parsed as expenses
+                continue
+
+        return expenses
+
+    def get_expense_by_id(self, expense_id: str):
+        """Retrieve a specific expense by ID.
+
+        Searches for a Transaction directive with matching expense-id metadata.
+
+        Args:
+            expense_id: The expense ID to search for
+
+        Returns:
+            Expense entity if found, None otherwise
+
+        Example:
+            >>> expense = adapter.get_expense_by_id("abc123")
+        """
+        entries, errors, options = self._load_entries()
+
+        for entry in entries:
+            # Filter for Transaction directives with matching expense-id
+            if not isinstance(entry, data.Transaction):
+                continue
+            if entry.meta.get("expense-id") != expense_id:
+                continue
+
+            # Parse and return the expense
+            try:
+                return self._parse_transaction_to_expense(entry)
+            except (ValueError, KeyError):
+                # If parsing fails, continue searching
+                continue
+
+        # Expense not found
+        return None

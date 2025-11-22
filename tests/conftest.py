@@ -112,6 +112,28 @@ def mock_partner_repository() -> Mock:
 
 
 @pytest.fixture
+def mock_expense_repository() -> Mock:
+    """Provide a mock ExpenseRepository for testing tools.
+
+    Returns:
+        Mock object implementing ExpenseRepository protocol
+
+    Example:
+        >>> def test_example(mock_expense_repository):
+        ...     mock_expense_repository.get_expense_by_id.return_value = None
+        ...     mock_expense_repository.log_expense(expense)
+        ...     mock_expense_repository.log_expense.assert_called_once()
+    """
+    repository = Mock()
+    repository.log_expense = Mock(return_value="exp_123")
+    repository.split_expense = Mock(return_value=None)
+    repository.get_expenses = Mock(return_value=[])
+    repository.get_expense_by_id = Mock(return_value=None)
+    repository.list_partners = Mock(return_value=[])
+    return repository
+
+
+@pytest.fixture
 def sample_partner() -> Partner:
     """Provide a sample Partner entity for testing.
 
