@@ -368,9 +368,9 @@ class TestScenarioGetAllExpenses:
         )
 
         # Log expenses directly through adapter
-        expense_id1 = beancount_adapter.log_expense(expense1)
-        expense_id2 = beancount_adapter.log_expense(expense2)
-        expense_id3 = beancount_adapter.log_expense(expense3)
+        beancount_adapter.log_expense(expense1)
+        beancount_adapter.log_expense(expense2)
+        beancount_adapter.log_expense(expense3)
 
         # Act: Retrieve all expenses through tool
         result = get_expenses(
@@ -513,7 +513,7 @@ class TestScenarioGetExpensesDateRange:
         )
 
         beancount_adapter.log_expense(expense1)
-        expense_id2 = beancount_adapter.log_expense(expense2)
+        beancount_adapter.log_expense(expense2)
         beancount_adapter.log_expense(expense3)
 
         # Act: Retrieve expenses for range "2024-06-02 to 2024-06-08"
@@ -563,8 +563,8 @@ class TestScenarioGetExpensesDateRange:
             paid_by=alice,
         )
 
-        id1 = beancount_adapter.log_expense(expense1)
-        id2 = beancount_adapter.log_expense(expense2)
+        beancount_adapter.log_expense(expense1)
+        beancount_adapter.log_expense(expense2)
 
         # Act: Query range matching exact dates
         result = get_expenses(
