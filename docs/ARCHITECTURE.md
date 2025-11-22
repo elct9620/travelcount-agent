@@ -68,6 +68,19 @@ class AccountRepository(Protocol):
 
 The beancount adapter is responsible to use beancount to store and retrieve travel expense data.
 
+We use Beancount as the low-level data storage solution for the TravelCount application. However, each adapter should be single responsibility and only focus on one functionality.
+
+```python
+class BeancountAdapter:
+    # Modify Beancount ledger use beancount API
+
+class BeancountPartnerRepository(PartnerRepository):
+    # Implement PartnerRepository interface with BeancountAdapter
+
+class BeancountExpenseRepository(ExpenseRepository):
+    # Implement ExpenseRepository interface with BeancountAdapter
+```
+
 ### Web UI
 
 A FastAPI-based web interface use ADK's web interface directly to interact with users.
