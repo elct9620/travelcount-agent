@@ -235,22 +235,39 @@ Extend the existing BeancountAdapter class to implement ExpenseRepository:
 
 **Logic:**
 1. Retrieve original expense via get_expense_by_id()
-2. Calculate split amounts based on ratios (default equal split)
-3. For each partner, calculate their net position:
-   - If partner is the payer: amount owed TO them = total - their share
-   - If partner is not the payer: amount owed BY them = their share (negative)
-4. Create Transaction directive with same date as original
-5. Add metadata: split-for (references expense ID)
-6. Create postings only for non-zero net amounts:
+2. Convert ratios to Decimal if provided (default equal split using Decimal arithmetic per [feature requirements](../features/expense.md#data-model))
+3. Calculate split amounts with appropriate currency precision per [feature requirements](../features/expense.md#data-model):
+   - Determine currency precision (e.g., 2 decimals for USD/EUR, 0 for JPY/KRW)
+   - Calculate each non-payer's share and quantize using ROUND_UP
+   - Calculate payer's net amount by difference to absorb any remainder
+4. For each partner, calculate their net position:
+   - If partner is not the payer: amount owed BY them = their share rounded up (negative)
+   - If partner is the payer: amount owed TO them = total - sum(other shares rounded up)
+5. Create Transaction directive with same date as original
+6. Add metadata: split-for (references expense ID)
+7. Create postings only for non-zero net amounts:
    - Partners who owe money: debit (negative amount)
    - Payer receives: credit (positive amount for what others owe)
-7. Append transaction to ledger
+8. Append transaction to ledger
 
 **Example calculations:**
+
+Equal split with rounding:
+- Alice paid 10.00 USD, split equally among Alice, Bob, Charlie (3 people)
+  - Bob's share: 10.00 / 3 = 3.333... → rounds up to 3.34 USD
+  - Charlie's share: 10.00 / 3 = 3.333... → rounds up to 3.34 USD
+  - Alice's share (payer): 10.00 - 3.34 - 3.34 = 3.32 USD (gets remainder)
+  - Alice net: 10.00 - 3.32 = 6.68 USD (receives from others)
+  - Bob net: -3.34 USD (owes)
+  - Charlie net: -3.34 USD (owes)
+  - Result: `Alice +6.68 USD, Bob -3.34 USD, Charlie -3.34 USD`
+  - Balance check: 6.68 + (-3.34) + (-3.34) = 0 ✓
+
+Ratio split:
 - Alice paid $100, split 70-30 between Alice and Bob
   - Alice's share: $70, Bob's share: $30
-  - Alice net: $100 (paid) - $70 (owes) = +$30 (Bob owes Alice)
-  - Bob net: $0 (paid) - $30 (owes) = -$30 (Bob owes Alice)
+  - Alice net: 100 - 70 = $30 (receives from Bob)
+  - Bob net: -$30 (owes Alice)
   - Result: `Alice +30 USD, Bob -30 USD`
 
 **Important:** The split transaction only records the settlement/transfer amounts, not the full expense redistribution. This avoids double-posting to the payer's account.

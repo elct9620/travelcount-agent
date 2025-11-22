@@ -65,6 +65,8 @@ After splitting an expense, the split details will be recorded as transfer entri
   Assets:Travel:Partners:Bob     25.00 USD
 ```
 
+Split amounts are displayed with appropriate precision for the currency (e.g., 2 decimal places for USD/EUR, whole numbers for JPY/KRW).
+
 ## Scenarios
 
 Following are scenarios in Gherkin format to illustrate how the agent handles expense logging and splitting.
