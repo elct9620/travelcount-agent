@@ -242,11 +242,9 @@ class TestValidExpenseLoggingThroughTool:
 
         # Capture initial state
         ledger_path = session_manager.get_ledger_path()
-        initial_content = _get_ledger_content(ledger_path)
 
         # Act: Log expense (should succeed with auto-creation)
         from agents.travelcount.entities.expense import Expense
-        from datetime import date
 
         expense = Expense(
             date=date.today(),
@@ -350,7 +348,6 @@ class TestLedgerRollbackOnValidationFailure:
 
         # Verify initial valid state
         ledger_path = session_manager.get_ledger_path()
-        valid_state = _get_ledger_content(ledger_path)
         entries, errors, options = loader.load_file(str(ledger_path))
         assert len(errors) == 0, "Initial ledger should be valid"
         assert len(beancount_adapter.list_partners()) == 2
