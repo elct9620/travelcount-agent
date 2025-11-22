@@ -6,14 +6,14 @@ This document outlines the design to implement the [Expense Tracking](../feature
 
 In this feature, following files will be created or modified:
 
-- `agents/travelcount/entities/expense.py` - Expense domain entity (existing)
-- `agents/travelcount/tools/expense.py` - Expense tool functions and ExpenseRepository protocol (modify to improve aggregation logic)
-- `agents/travelcount/storage/beancount_adapter.py` - Extended to implement ExpenseRepository (existing)
-- `agents/travelcount/agent.py` - Register expense tool with session-aware wrapper (existing)
-- `tests/test_entities/test_expense.py` - Unit tests for Expense entity (existing)
-- `tests/test_tools/test_expense.py` - Unit tests for expense tools (add tests for improved aggregation)
-- `tests/test_storage/test_beancount_adapter_expense.py` - Unit tests for expense storage (existing)
-- `tests/test_acceptance/test_expense.py` - Acceptance tests from feature scenarios (existing)
+- `agents/travelcount/entities/expense.py` - Expense domain entity
+- `agents/travelcount/tools/expense.py` - Expense tool functions and ExpenseRepository protocol
+- `agents/travelcount/storage/beancount_adapter.py` - Extended to implement ExpenseRepository
+- `agents/travelcount/agent.py` - Register expense tool with session-aware wrapper
+- `tests/test_entities/test_expense.py` - Unit tests for Expense entity
+- `tests/test_tools/test_expense.py` - Unit tests for expense tools
+- `tests/test_storage/test_beancount_adapter_expense.py` - Unit tests for expense storage
+- `tests/test_acceptance/test_expense.py` - Acceptance tests from feature scenarios
 
 ## Entities
 
@@ -227,12 +227,23 @@ Extend the existing BeancountAdapter class to implement ExpenseRepository:
 3. Create two postings:
    - Debit: `Expenses:Travel:[Category]` with amount
    - Credit: `Assets:Travel:Partners:[PaidBy]` (balancing, no amount)
-4. Append transaction to ledger using `_write_directive()`
+4. Append transaction to ledger
 5. Return expense ID
 
 **Category inference:**
 - Parse description for keywords (Food, Transport, Hotel, etc.)
 - Default to `Expenses:Travel:Misc`
+- **Fixed categories:** Only 4 categories are supported: Food, Transport, Hotel, Misc
+- Categories are inferred via case-insensitive keyword matching
+
+**Expense account auto-creation:**
+Per the [Validation](../features/validation.md) feature requirements, expense accounts must exist before use. To support this:
+1. Before creating the expense transaction, check if the expense category account exists
+2. If not found, automatically create an `open` directive for it:
+   ```beancount
+   1970-01-01 open Expenses:Travel:[Category]
+   ```
+3. This ensures bean-check validation passes when the expense transaction is written
 
 #### split_expense implementation
 
@@ -246,8 +257,8 @@ Extend the existing BeancountAdapter class to implement ExpenseRepository:
 
 **Logic:**
 1. Retrieve original expense via get_expense_by_id()
-2. Convert ratios to Decimal if provided (default equal split using Decimal arithmetic per [feature requirements](../features/expense.md#data-model))
-3. Calculate split amounts with ROUND_UP strategy per [feature requirements](../features/expense.md#data-model):
+2. Convert ratios to Decimal if provided (default equal split using Decimal arithmetic per [Expense](../features/expense.md) feature requirements)
+3. Calculate split amounts with ROUND_UP strategy per [Expense](../features/expense.md) feature requirements:
    - All amounts rounded to 2 decimal places maximum for simplicity
    - Calculate each non-payer's share and quantize using ROUND_UP
    - Calculate payer's net amount by difference to absorb any remainder
@@ -286,13 +297,13 @@ Ratio split:
 #### get_expenses implementation
 
 **Logic:**
-1. Load ledger entries via `_load_entries()`
+1. Load ledger entries
 2. Filter Transaction directives with "expense-id" metadata
 3. Apply date range filter if provided
 4. Parse each transaction to construct Expense entities
 5. Return list of Expense objects
 
-**Note:** Split information is stored separately in Beancount transactions with "split-for" metadata. The tool layer (`_handle_get_expenses`) will need to load both expenses and splits from the ledger to calculate each partner's actual expense amounts.
+**Note:** Split information is stored separately in Beancount transactions with "split-for" metadata. The tool layer will need to load both expenses and splits from the ledger to calculate each partner's actual expense amounts.
 
 #### get_expense_by_id implementation
 
@@ -382,7 +393,7 @@ root_agent = Agent(
 - Each expense displays who paid and each partner's actual share
 - Correctly filters out non-expense transactions
 
-**Expected behavior per feature spec (lines 109-122, 153-165):**
+**Expected behavior per [Expense](../features/expense.md) feature spec:**
 When retrieving expenses without aggregation (`aggregate=False`), return individual expense items showing each partner's share:
 ```json
 [
@@ -403,7 +414,7 @@ When retrieving expenses without aggregation (`aggregate=False`), return individ
 - Returns partner summary with total_paid, total_expense, and net_settlement
 - Net settlement = total_paid - total_expense (positive means owed TO them, negative means they owe)
 
-**Expected behavior per feature spec (lines 124-134):**
+**Expected behavior per [Expense](../features/expense.md) feature spec:**
 When retrieving expenses with aggregation (`aggregate=True`), return partner totals:
 ```json
 [
