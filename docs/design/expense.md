@@ -315,40 +315,69 @@ Ratio split:
 
 ### Agent Registration
 
-In `agents/travelcount/agent.py`, add wrapper function:
+In `agents/travelcount/agent.py`, add three separate wrapper functions with clear, focused signatures:
 
 ```python
-def expense(
-    operation: str,
-    amount: float = None,
-    currency: str = None,
-    description: str = None,
+def log_expense(
+    amount: float,
+    currency: str,
+    description: str,
     paid_by: str = None,
-    expense_id: str = None,
-    partners: list[str] = None,
-    ratios: list[float] = None,
-    range: str = "all",
-    aggregate: bool = True,
     tool_context: ToolContext = None
 ) -> dict:
-    """Expense management tool wrapper with session injection."""
+    """Log a travel expense for the current session."""
     session_id = tool_context.session.id
     session_manager = SessionManager(session_id)
     adapter = BeancountAdapter(session_manager)
 
-    if operation == "log":
-        return log_expense(amount, currency, description, paid_by, adapter)
-    elif operation == "split":
-        return split_expense(expense_id, partners, ratios, adapter)
-    elif operation == "get":
-        return get_expenses(range, aggregate, adapter)
+    return log_expense_tool(
+        amount=amount,
+        currency=currency,
+        description=description,
+        paid_by=paid_by,
+        repository=adapter
+    )
+
+def split_expense(
+    expense_id: str,
+    partners: list[str],
+    ratios: list[float] = None,
+    tool_context: ToolContext = None
+) -> dict:
+    """Split an expense among travel partners."""
+    session_id = tool_context.session.id
+    session_manager = SessionManager(session_id)
+    adapter = BeancountAdapter(session_manager)
+
+    return split_expense_tool(
+        expense_id=expense_id,
+        partners=partners,
+        ratios=ratios,
+        repository=adapter
+    )
+
+def get_expenses(
+    range: str = "all",
+    aggregate: bool = True,
+    tool_context: ToolContext = None
+) -> dict:
+    """Retrieve logged expenses for the current session."""
+    session_id = tool_context.session.id
+    session_manager = SessionManager(session_id)
+    adapter = BeancountAdapter(session_manager)
+
+    return get_expenses_tool(
+        range=range,
+        aggregate=aggregate,
+        repository=adapter
+    )
 ```
 
 Register with root_agent:
 ```python
 root_agent = Agent(
     model="gemini-2.5-flash",
-    tools=[partners, expense]
+    tools=[partners, log_expense, split_expense, get_expenses]
 )
 ```
 
