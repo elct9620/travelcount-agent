@@ -349,9 +349,9 @@ class TestExpenseLoggingWithValidation:
                 "ValidationError should be raised for nonexistent partner"
             )
 
-            # Verify error message mentions the unopened account issue
-            assert "index.bean" in error_message, (
-                "Error message should contain filename"
+            # Verify error message mentions the partner account issue
+            assert "Alice" in error_message and "does not exist" in error_message, (
+                "Error message should mention nonexistent partner"
             )
 
             # Verify ledger was rolled back

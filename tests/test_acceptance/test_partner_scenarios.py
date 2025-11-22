@@ -118,8 +118,10 @@ class TestScenarioAddNewPartner:
         alice_open = next((e for e in open_entries if "Alice" in e.account), None)
         assert alice_open is not None
         assert alice_open.account == "Assets:Travel:Partners:Alice"
-        assert alice_open.date == date.today()
-        assert "USD" in alice_open.currencies
+        assert alice_open.date == date(
+            1970, 1, 1
+        )  # Epoch date allows transactions at any time
+        assert alice_open.currencies is None  # None allows all currencies
 
         # Assert: Ledger file has been modified
         ledger_content = ledger_path.read_text()

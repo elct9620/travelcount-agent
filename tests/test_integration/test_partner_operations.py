@@ -263,8 +263,9 @@ class TestBeancountFileParsing:
                 open_entry = open_accounts[expected_account]
                 assert isinstance(open_entry, data.Open)
                 assert open_entry.account == expected_account
-                assert "USD" in open_entry.currencies
+                assert open_entry.currencies is None  # None allows all currencies
                 assert isinstance(open_entry.date, date)
+                assert open_entry.date == date(1970, 1, 1)  # Epoch date
 
             # Step 2: Remove one partner and verify Close directive
             adapter.remove_partner("Bob")

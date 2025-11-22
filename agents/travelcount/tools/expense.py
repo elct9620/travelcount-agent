@@ -9,6 +9,7 @@ enabling loose coupling and easy testing with mock repositories.
 """
 
 import datetime
+from decimal import Decimal
 from typing import Optional, Protocol
 
 from ..entities.expense import Expense
@@ -306,9 +307,10 @@ def _handle_log_expense(
             payer_partner = matching_partners[0]
 
         # Create expense entity with today's date
+        # Convert amount to Decimal for precise financial calculations
         expense = Expense(
             date=datetime.date.today(),
-            amount=amount,
+            amount=Decimal(str(amount)),
             currency=currency,
             description=description,
             paid_by=payer_partner,

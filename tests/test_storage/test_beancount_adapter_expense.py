@@ -656,6 +656,170 @@ class TestBeancountAdapterParseTransaction:
             beancount_adapter._parse_transaction_to_expense(txn)
 
 
+class TestBeancountAdapterExpenseAccountAutoCreation:
+    """Test automatic creation of expense category accounts."""
+
+    def test_log_expense_auto_creates_expense_account(
+        self, beancount_adapter: BeancountAdapter, session_manager: SessionManager
+    ) -> None:
+        """Test that log_expense auto-creates expense category account if not exists."""
+        alice = Partner("Alice")
+        beancount_adapter.add_partner(alice)
+
+        expense = Expense(
+            date=date(2024, 6, 1),
+            amount=Decimal("50.00"),
+            currency="USD",
+            description="Lunch at cafe",
+            paid_by=alice,
+        )
+
+        beancount_adapter.log_expense(expense)
+
+        ledger_content = session_manager.get_ledger_path().read_text()
+        # Should auto-create the Food expense account with epoch date
+        assert "1970-01-01 open Expenses:Travel:Food" in ledger_content
+
+    def test_log_expense_does_not_duplicate_expense_account(
+        self, beancount_adapter: BeancountAdapter, session_manager: SessionManager
+    ) -> None:
+        """Test that log_expense doesn't duplicate expense account creation."""
+        alice = Partner("Alice")
+        beancount_adapter.add_partner(alice)
+
+        # Log two food expenses
+        expense1 = Expense(
+            date=date(2024, 6, 1),
+            amount=Decimal("50.00"),
+            currency="USD",
+            description="Lunch at cafe",
+            paid_by=alice,
+        )
+        expense2 = Expense(
+            date=date(2024, 6, 2),
+            amount=Decimal("30.00"),
+            currency="USD",
+            description="Dinner at restaurant",
+            paid_by=alice,
+        )
+
+        beancount_adapter.log_expense(expense1)
+        beancount_adapter.log_expense(expense2)
+
+        ledger_content = session_manager.get_ledger_path().read_text()
+        # Should only have one Food account open directive
+        assert ledger_content.count("open Expenses:Travel:Food") == 1
+
+    def test_ensure_expense_account_exists_creates_account(
+        self, beancount_adapter: BeancountAdapter, session_manager: SessionManager
+    ) -> None:
+        """Test that _ensure_expense_account_exists creates missing accounts."""
+        beancount_adapter._ensure_expense_account_exists("Food")
+
+        ledger_content = session_manager.get_ledger_path().read_text()
+        assert "1970-01-01 open Expenses:Travel:Food" in ledger_content
+
+    def test_ensure_expense_account_exists_does_not_duplicate(
+        self, beancount_adapter: BeancountAdapter, session_manager: SessionManager
+    ) -> None:
+        """Test that _ensure_expense_account_exists doesn't create duplicates."""
+        beancount_adapter._ensure_expense_account_exists("Food")
+        beancount_adapter._ensure_expense_account_exists("Food")
+
+        ledger_content = session_manager.get_ledger_path().read_text()
+        assert ledger_content.count("open Expenses:Travel:Food") == 1
+
+    def test_ensure_expense_account_exists_for_all_categories(
+        self, beancount_adapter: BeancountAdapter, session_manager: SessionManager
+    ) -> None:
+        """Test that expense accounts can be created for all categories."""
+        categories = ["Food", "Transport", "Hotel", "Misc"]
+
+        for category in categories:
+            beancount_adapter._ensure_expense_account_exists(category)
+
+        ledger_content = session_manager.get_ledger_path().read_text()
+        for category in categories:
+            assert f"open Expenses:Travel:{category}" in ledger_content
+
+
+class TestBeancountAdapterGetSplits:
+    """Test retrieving split transactions from Beancount ledger."""
+
+    def test_get_splits_returns_split_data(
+        self, beancount_adapter: BeancountAdapter
+    ) -> None:
+        """Test that get_splits returns split transaction data."""
+        alice = Partner("Alice")
+        bob = Partner("Bob")
+        beancount_adapter.add_partner(alice)
+        beancount_adapter.add_partner(bob)
+
+        expense = Expense(
+            date=date(2024, 6, 1),
+            amount=Decimal("50.00"),
+            currency="USD",
+            description="Lunch",
+            paid_by=alice,
+        )
+        expense_id = beancount_adapter.log_expense(expense)
+        beancount_adapter.split_expense(expense_id, [alice, bob])
+
+        splits = beancount_adapter.get_splits()
+
+        assert expense_id in splits
+        assert "Alice" in splits[expense_id]
+        assert "Bob" in splits[expense_id]
+        assert splits[expense_id]["Alice"] == Decimal("25.00")
+        assert splits[expense_id]["Bob"] == Decimal("-25.00")
+
+    def test_get_splits_returns_empty_dict_for_no_splits(
+        self, beancount_adapter: BeancountAdapter
+    ) -> None:
+        """Test that get_splits returns empty dict when no splits exist."""
+        splits = beancount_adapter.get_splits()
+
+        assert splits == {}
+        assert isinstance(splits, dict)
+
+    def test_get_splits_filters_by_date_range(
+        self, beancount_adapter: BeancountAdapter
+    ) -> None:
+        """Test that get_splits filters by date range."""
+        alice = Partner("Alice")
+        bob = Partner("Bob")
+        beancount_adapter.add_partner(alice)
+        beancount_adapter.add_partner(bob)
+
+        expense1 = Expense(
+            date=date(2024, 6, 1),
+            amount=Decimal("50.00"),
+            currency="USD",
+            description="Lunch 1",
+            paid_by=alice,
+        )
+        expense2 = Expense(
+            date=date(2024, 6, 10),
+            amount=Decimal("30.00"),
+            currency="USD",
+            description="Lunch 2",
+            paid_by=alice,
+        )
+
+        expense_id1 = beancount_adapter.log_expense(expense1)
+        expense_id2 = beancount_adapter.log_expense(expense2)
+
+        beancount_adapter.split_expense(expense_id1, [alice, bob])
+        beancount_adapter.split_expense(expense_id2, [alice, bob])
+
+        splits = beancount_adapter.get_splits(
+            date_from=date(2024, 6, 5), date_to=date(2024, 6, 15)
+        )
+
+        assert expense_id1 not in splits
+        assert expense_id2 in splits
+
+
 class TestBeancountAdapterExpenseIntegration:
     """Integration tests for expense tracking workflow."""
 

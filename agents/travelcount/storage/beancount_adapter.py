@@ -78,6 +78,9 @@ class BeancountAdapter:
     def _partner_to_account_name(self, partner: Partner) -> str:
         """Convert a Partner entity to a Beancount account name.
 
+        Sanitizes the partner name for Beancount compatibility by replacing
+        spaces with hyphens, as Beancount account names cannot contain spaces.
+
         Args:
             partner: Partner entity to convert
 
@@ -88,11 +91,19 @@ class BeancountAdapter:
             >>> partner = Partner("Alice")
             >>> adapter._partner_to_account_name(partner)
             'Assets:Travel:Partners:Alice'
+            >>> partner = Partner("Bob Chen")
+            >>> adapter._partner_to_account_name(partner)
+            'Assets:Travel:Partners:Bob-Chen'
         """
-        return f"{self.ACCOUNT_PREFIX}{partner.name}"
+        # Replace spaces with hyphens for Beancount compatibility
+        sanitized_name = partner.name.replace(" ", "-")
+        return f"{self.ACCOUNT_PREFIX}{sanitized_name}"
 
     def _account_name_to_partner(self, account_name: str) -> Partner:
         """Convert a Beancount account name to a Partner entity.
+
+        Converts hyphens back to spaces to restore the original partner name,
+        reversing the sanitization done in _partner_to_account_name.
 
         Args:
             account_name: Beancount account name to convert
@@ -108,13 +119,19 @@ class BeancountAdapter:
             >>> partner = adapter._account_name_to_partner(account)
             >>> partner.name
             'Alice'
+            >>> account = "Assets:Travel:Partners:Bob-Chen"
+            >>> partner = adapter._account_name_to_partner(account)
+            >>> partner.name
+            'Bob Chen'
         """
         if not account_name.startswith(self.ACCOUNT_PREFIX):
             raise ValueError(
                 f"Account '{account_name}' does not match partner account pattern"
             )
 
-        partner_name = account_name[len(self.ACCOUNT_PREFIX) :]
+        sanitized_name = account_name[len(self.ACCOUNT_PREFIX) :]
+        # Restore spaces from hyphens
+        partner_name = sanitized_name.replace("-", " ")
         return Partner(partner_name)
 
     def _load_entries(self) -> tuple[list, list, dict]:
@@ -201,7 +218,7 @@ class BeancountAdapter:
         except ValidationError:
             # Re-raise ValidationError as-is
             raise
-        except Exception as e:
+        except Exception:
             # For unexpected errors during validation, restore backup and re-raise
             with open(ledger_path, "w", encoding="utf-8") as f:
                 f.write(backup_content)
@@ -232,12 +249,13 @@ class BeancountAdapter:
         account_name = self._partner_to_account_name(partner)
         ledger_path = self._get_ledger_path()
 
-        # Create Open directive
+        # Create Open directive with epoch date to allow transactions at any date
+        # Allow all currencies (None) to support multi-currency expenses
         open_directive = data.Open(
             meta={"filename": str(ledger_path), "lineno": 0},
-            date=date.today(),
+            date=date(1970, 1, 1),
             account=account_name,
-            currencies=[self.CURRENCY],
+            currencies=None,
             booking=None,
         )
 
@@ -393,6 +411,43 @@ class BeancountAdapter:
         # Default to Misc
         return "Misc"
 
+    def _ensure_expense_account_exists(self, category: str) -> None:
+        """Ensure expense category account exists, create if not found.
+
+        Per validation requirements, expense accounts must exist before use.
+        This method checks if the expense category account exists and
+        automatically creates an open directive if not found.
+
+        Args:
+            category: Expense category (Food, Transport, Hotel, Misc)
+
+        Example:
+            >>> adapter._ensure_expense_account_exists("Food")
+            # Creates: 1970-01-01 open Expenses:Travel:Food
+        """
+        expense_account = f"{self.EXPENSE_PREFIX}{category}"
+        entries, errors, options = self._load_entries()
+
+        # Check if account already exists
+        for entry in entries:
+            if isinstance(entry, data.Open):
+                if entry.account == expense_account:
+                    # Account already exists
+                    return
+
+        # Account not found, create it
+        ledger_path = self._get_ledger_path()
+        open_directive = data.Open(
+            meta={"filename": str(ledger_path), "lineno": 0},
+            date=date(1970, 1, 1),  # Use epoch date for auto-created accounts
+            account=expense_account,
+            currencies=None,
+            booking=None,
+        )
+
+        # Write directive to file
+        self._write_directive(open_directive)
+
     def _parse_transaction_to_expense(self, transaction: data.Transaction):
         """Convert a Beancount Transaction directive to an Expense entity.
 
@@ -469,12 +524,18 @@ class BeancountAdapter:
         - Debit posting to Expenses:Travel:[Category]
         - Credit posting to Assets:Travel:Partners:[PaidBy]
 
+        Per validation requirements, automatically creates the expense category
+        account if it doesn't exist before creating the transaction.
+
         Args:
             expense: Expense entity to log
             default_partner: Optional default partner (unused, for protocol compatibility)
 
         Returns:
             The expense ID
+
+        Raises:
+            ValidationError: If partner account doesn't exist
 
         Example:
             >>> from entities.expense import Expense
@@ -483,8 +544,21 @@ class BeancountAdapter:
         """
         # Import here to avoid circular dependency
 
+        # Validate partner exists before modifying ledger
+        if not self.partner_exists(expense.paid_by.name):
+            from agents.travelcount.storage.validator import ValidationError
+
+            raise ValidationError(
+                f"Partner account '{expense.paid_by.name}' does not exist. "
+                f"Please add the partner before logging expenses."
+            )
+
         # Infer category from description
         category = self._infer_category(expense.description)
+
+        # Ensure expense category account exists (auto-create if needed)
+        self._ensure_expense_account_exists(category)
+
         expense_account = f"{self.EXPENSE_PREFIX}{category}"
         partner_account = self._partner_to_account_name(expense.paid_by)
 

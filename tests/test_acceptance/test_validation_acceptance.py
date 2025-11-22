@@ -224,19 +224,17 @@ class TestValidExpenseLoggingThroughTool:
     """Scenario: User logs an expense with valid input through the tool."""
 
     def test_log_expense_with_validation(self, beancount_adapter, session_manager):
-        """Test logging expense fails when expense account not opened.
+        """Test logging expense succeeds with automatic expense account creation.
 
-        This verifies validation catches reference to unopened accounts:
+        This verifies the auto-creation feature for expense accounts:
         1. Tool attempts to log expense
-        2. BeancountAdapter creates transaction directive
-        3. Validator detects unopened Expenses:Travel:Food account
-        4. ValidationError is raised
-        5. Ledger is rolled back to valid state
+        2. BeancountAdapter automatically creates Expenses:Travel:Food account if needed
+        3. Transaction directive is created
+        4. Validator confirms the ledger is valid
+        5. Expense is successfully persisted
 
-        Note: This demonstrates that validation prevents transactions from
-        referencing unopened accounts, which is proper Beancount behavior.
-        In a real system, expense accounts would be opened during ledger
-        initialization or on first use.
+        Note: This demonstrates that expense accounts are automatically opened on
+        first use, which is proper Beancount behavior for a real system.
         """
         # Setup: Add a partner first
         alice = Partner("Alice")
@@ -246,44 +244,39 @@ class TestValidExpenseLoggingThroughTool:
         ledger_path = session_manager.get_ledger_path()
         initial_content = _get_ledger_content(ledger_path)
 
-        # Act: Attempt to log expense (will fail because expense account not opened)
-        # This tests validation catches reference to unopened account
-        with pytest.raises(ValidationError) as exc_info:
-            from agents.travelcount.entities.expense import Expense
-            from datetime import date
+        # Act: Log expense (should succeed with auto-creation)
+        from agents.travelcount.entities.expense import Expense
+        from datetime import date
 
-            expense = Expense(
-                date=date.today(),
-                amount=50.0,
-                currency="USD",
-                description="Lunch at cafe",
-                paid_by=alice,
-            )
-            beancount_adapter.log_expense(expense)
-
-        # Assert: ValidationError was raised with meaningful message
-        error_message = str(exc_info.value)
-        assert (
-            "Expenses:Travel:Food" in error_message
-            or "unknown account" in error_message.lower()
-        ), "Error should mention the unopened expense account"
-        assert ".bean:" in error_message, (
-            "Error should contain file path with line number"
+        expense = Expense(
+            date=date.today(),
+            amount=50.0,
+            currency="USD",
+            description="Lunch at cafe",
+            paid_by=alice,
         )
+        expense_id = beancount_adapter.log_expense(expense)
 
-        # Assert: Ledger was rolled back to valid state
+        # Assert: Expense was created successfully
+        assert expense_id is not None
+
+        # Assert: Ledger contains the expense
         final_content = _get_ledger_content(ledger_path)
-        assert final_content == initial_content, (
-            "Ledger should be rolled back when expense account not opened"
+        assert "Lunch at cafe" in final_content
+
+        # Assert: Expense account was auto-created with epoch date
+        assert "1970-01-01 open Expenses:Travel:Food" in final_content
+
+        # Assert: Ledger is valid
+        entries, errors, options = loader.load_file(str(ledger_path))
+        assert len(errors) == 0, (
+            f"Ledger should be valid after expense logging: {errors}"
         )
 
-        # Assert: Ledger is still valid
-        entries, errors, options = loader.load_file(str(ledger_path))
-        assert len(errors) == 0, f"Ledger should remain valid after rollback: {errors}"
-
-        # Assert: No expense transaction was persisted
-        assert "Lunch at cafe" not in final_content
-        assert beancount_adapter.get_expenses() == []
+        # Assert: Expense can be retrieved
+        expenses = beancount_adapter.get_expenses()
+        assert len(expenses) == 1
+        assert expenses[0].description == "Lunch at cafe"
 
 
 class TestInvalidExpenseLoggingThroughTool:

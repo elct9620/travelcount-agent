@@ -89,7 +89,8 @@ class TestBeancountAdapterAddPartner:
         beancount_adapter.add_partner(partner)
 
         ledger_content = session_manager.get_ledger_path().read_text()
-        assert "Assets:Travel:Partners:Bob Chen" in ledger_content
+        # Spaces in partner names are converted to hyphens for Beancount compatibility
+        assert "Assets:Travel:Partners:Bob-Chen" in ledger_content
 
     def test_add_multiple_partners(
         self, beancount_adapter: BeancountAdapter, session_manager: SessionManager
