@@ -34,6 +34,7 @@ Feature: Validate Beancount file updates
           """
         When the user tries to interact with accounting data
         Then the agent should respond with internal error indicating validation failure
+        And rollback the beancount file to previous valid state
 ```
 
 This ensures the beancount file can be exported and used without issues. Each feature's design should not cause any beancount validation errors.
