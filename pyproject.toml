@@ -15,6 +15,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.0.1",
+    "pytest-cov>=7.0.0",
     "python-lsp-server>=1.13.1",
     "ruff>=0.14.5",
 ]
