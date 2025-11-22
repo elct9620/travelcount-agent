@@ -24,6 +24,7 @@ from beancount.parser import printer
 
 from ..entities.partner import Partner
 from .session_manager import SessionManager
+from .validator import ValidationError, format_error, validate_ledger
 
 
 class BeancountAdapter:
@@ -159,19 +160,52 @@ class BeancountAdapter:
         return opened_accounts - closed_accounts
 
     def _write_directive(self, directive: data.Directive) -> None:
-        """Write a Beancount directive to the ledger file.
+        """Write a Beancount directive to the ledger file with validation.
 
         Appends the directive to the end of the ledger file using Beancount's
-        printer module.
+        printer module, then validates the ledger. If validation fails, the
+        ledger is rolled back to its previous state and a ValidationError is raised.
+
+        This ensures the ledger remains in a valid state at all times.
 
         Args:
-            directive: Beancount directive to write (Open or Close)
+            directive: Beancount directive to write (Open, Close, or Transaction)
+
+        Raises:
+            ValidationError: If the ledger becomes invalid after writing the directive
         """
         ledger_path = self._get_ledger_path()
 
+        # Backup current ledger content
+        backup_content = ""
+        if ledger_path.exists():
+            with open(ledger_path, "r", encoding="utf-8") as f:
+                backup_content = f.read()
+
+        # Append directive to ledger
         with open(ledger_path, "a", encoding="utf-8") as f:
             # Add a newline before the directive for readability
             printer.print_entry(directive, file=f)
+
+        # Validate the ledger after writing
+        try:
+            errors = validate_ledger(ledger_path)
+            if errors:
+                # Restore ledger from backup
+                with open(ledger_path, "w", encoding="utf-8") as f:
+                    f.write(backup_content)
+
+                # Format all errors and raise ValidationError
+                error_messages = [format_error(error) for error in errors]
+                raise ValidationError("\n".join(error_messages))
+        except ValidationError:
+            # Re-raise ValidationError as-is
+            raise
+        except Exception as e:
+            # For unexpected errors during validation, restore backup and re-raise
+            with open(ledger_path, "w", encoding="utf-8") as f:
+                f.write(backup_content)
+            raise
 
     def add_partner(self, partner: Partner) -> None:
         """Add a new partner to the repository.
