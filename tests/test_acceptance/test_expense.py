@@ -908,7 +908,7 @@ class TestScenarioGetAggregatedMultiCurrency:
         )
 
         # Log EUR expenses
-        eur_expense_result = log_expense(
+        log_expense(
             amount=85.0,
             currency="EUR",
             description="Restaurant in Europe",
@@ -981,7 +981,7 @@ class TestScenarioGetAggregatedMultiCurrency:
         )
 
         # Log EUR expense
-        eur_result = log_expense(
+        log_expense(
             amount=42.50,
             currency="EUR",
             description="Dinner",
