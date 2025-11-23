@@ -238,17 +238,12 @@ class TestInvalidLedgerUpdateWithRollback:
 class TestExpenseLoggingWithValidation:
     """Test expense logging with validation.
 
-    NOTE: These tests currently demonstrate that expense logging requires
-    expense accounts (e.g., Expenses:Travel:Food) to be opened before use.
-    This is a limitation discovered by integration testing with the validation
-    feature. The tests are marked as expected failures until expense account
-    auto-opening is implemented.
+    NOTE: Expense accounts are automatically opened when logging expenses,
+    as implemented in BeancountAdapter._ensure_expense_account_exists().
+    These tests verify that the automatic account opening works correctly
+    with the validation feature.
     """
 
-    @pytest.mark.xfail(
-        reason="Expense accounts need to be opened before use (discovered by validation tests)",
-        raises=ValidationError,
-    )
     def test_expense_logging_with_validation(self) -> None:
         """Test logging an expense with validation.
 
@@ -256,9 +251,7 @@ class TestExpenseLoggingWithValidation:
         - No ValidationError is raised when logging a valid expense
         - Expense is persisted correctly in ledger
         - Ledger remains valid after expense logging
-
-        NOTE: This test currently fails because expense accounts are not opened.
-        This is an integration issue discovered by the validation feature.
+        - Expense accounts are automatically opened
         """
         with tempfile.TemporaryDirectory() as tmpdir:
             # Setup
@@ -372,15 +365,12 @@ class TestExpenseLoggingWithValidation:
 class TestExpenseSplittingWithValidation:
     """Test expense splitting with validation.
 
-    NOTE: These tests are marked as expected failures because expense accounts
-    need to be opened before use. This is a limitation discovered by integration
-    testing with the validation feature.
+    NOTE: Expense accounts are automatically opened when logging expenses,
+    as implemented in BeancountAdapter._ensure_expense_account_exists().
+    These tests verify that the automatic account opening works correctly
+    with the validation feature.
     """
 
-    @pytest.mark.xfail(
-        reason="Expense accounts need to be opened before use (discovered by validation tests)",
-        raises=ValidationError,
-    )
     def test_expense_splitting_with_validation(self) -> None:
         """Test splitting an expense among partners with validation.
 
@@ -388,6 +378,7 @@ class TestExpenseSplittingWithValidation:
         - No ValidationError is raised when splitting expense
         - Split transaction is persisted correctly
         - Ledger remains valid after split
+        - Expense accounts are automatically opened
         """
         with tempfile.TemporaryDirectory() as tmpdir:
             # Setup
@@ -433,10 +424,6 @@ class TestExpenseSplittingWithValidation:
             entries, errors, options = loader.load_file(str(ledger_path))
             assert len(errors) == 0, "Ledger should have no errors after split"
 
-    @pytest.mark.xfail(
-        reason="Expense accounts need to be opened before use (discovered by validation tests)",
-        raises=ValidationError,
-    )
     def test_expense_splitting_with_nonexistent_partner_raises_validation_error(
         self,
     ) -> None:
@@ -446,8 +433,7 @@ class TestExpenseSplittingWithValidation:
         - ValidationError is raised when split includes nonexistent partner
         - Ledger is rolled back (split not added)
         - Ledger remains in valid state
-
-        NOTE: Currently fails due to expense account not being opened first.
+        - Expense accounts are automatically opened
         """
         with tempfile.TemporaryDirectory() as tmpdir:
             # Setup
@@ -520,14 +506,10 @@ class TestExpenseSplittingWithValidation:
 class TestComplexValidationScenarios:
     """Test complex validation scenarios with multiple operations.
 
-    NOTE: Some tests are marked as expected failures due to expense account
-    requirements discovered during integration testing.
+    NOTE: Expense accounts are automatically opened when logging expenses,
+    as implemented in BeancountAdapter._ensure_expense_account_exists().
     """
 
-    @pytest.mark.xfail(
-        reason="Expense accounts need to be opened before use (discovered by validation tests)",
-        raises=ValidationError,
-    )
     def test_mixed_operations_maintain_ledger_validity(self) -> None:
         """Test that mix of valid/invalid operations maintains ledger validity.
 
@@ -536,8 +518,7 @@ class TestComplexValidationScenarios:
         - Invalid operations fail and rollback
         - Ledger remains valid throughout
         - Only successful operations are persisted
-
-        NOTE: Currently fails due to expense account not being opened first.
+        - Expense accounts are automatically opened
         """
         with tempfile.TemporaryDirectory() as tmpdir:
             # Setup

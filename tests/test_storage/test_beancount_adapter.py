@@ -417,3 +417,66 @@ class TestBeancountAdapterFileIntegration:
         assert "Assets:Travel:Partners:Bob" in second_content
         # Original header should be preserved
         assert "TravelCount Session Ledger" in second_content
+
+
+class TestBeancountAdapterExpenseAccountOpening:
+    """Test automatic expense account opening functionality."""
+
+    def test_ensure_expense_account_creates_new_account(
+        self, beancount_adapter: BeancountAdapter, session_manager: SessionManager
+    ) -> None:
+        """Test that _ensure_expense_account_exists creates a new expense account."""
+        # Verify account doesn't exist initially
+        ledger_path = session_manager.get_ledger_path()
+        initial_content = ledger_path.read_text()
+        assert "Expenses:Travel:Food" not in initial_content
+
+        # Call the method to ensure account exists
+        beancount_adapter._ensure_expense_account_exists("Food")
+
+        # Verify account was created
+        updated_content = ledger_path.read_text()
+        assert "Expenses:Travel:Food" in updated_content
+        assert "1970-01-01 open Expenses:Travel:Food" in updated_content
+
+    def test_ensure_expense_account_does_not_duplicate_existing_account(
+        self, beancount_adapter: BeancountAdapter, session_manager: SessionManager
+    ) -> None:
+        """Test that _ensure_expense_account_exists doesn't duplicate existing accounts."""
+        # Create account first time
+        beancount_adapter._ensure_expense_account_exists("Transport")
+        first_content = session_manager.get_ledger_path().read_text()
+        first_count = first_content.count("Expenses:Travel:Transport")
+
+        # Call again - should not create duplicate
+        beancount_adapter._ensure_expense_account_exists("Transport")
+        second_content = session_manager.get_ledger_path().read_text()
+        second_count = second_content.count("Expenses:Travel:Transport")
+
+        # Count should be the same (only one open directive)
+        assert first_count == second_count
+        assert first_count == 1
+
+    def test_ensure_expense_account_handles_multiple_categories(
+        self, beancount_adapter: BeancountAdapter, session_manager: SessionManager
+    ) -> None:
+        """Test that multiple expense categories can be created."""
+        categories = ["Food", "Transport", "Hotel", "Misc"]
+
+        for category in categories:
+            beancount_adapter._ensure_expense_account_exists(category)
+
+        # Verify all accounts were created
+        ledger_content = session_manager.get_ledger_path().read_text()
+        for category in categories:
+            assert f"Expenses:Travel:{category}" in ledger_content
+
+    def test_expense_account_uses_epoch_date(
+        self, beancount_adapter: BeancountAdapter, session_manager: SessionManager
+    ) -> None:
+        """Test that auto-created expense accounts use epoch date (1970-01-01)."""
+        beancount_adapter._ensure_expense_account_exists("Food")
+
+        ledger_content = session_manager.get_ledger_path().read_text()
+        # Auto-created accounts should use epoch date
+        assert "1970-01-01 open Expenses:Travel:Food" in ledger_content
