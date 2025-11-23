@@ -1,0 +1,329 @@
+{
+  "eval_set_id": "basic_tracking",
+  "name": "basic_tracking",
+  "eval_cases": [
+    {
+      "eval_id": "equal_expense",
+      "conversation": [
+        {
+          "invocation_id": "e-f6ba965d-4125-47f8-a5fc-fad2a81c6368",
+          "user_content": {
+            "parts": [
+              {
+                "text": "We have Alice, Bob and John in this trip"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Alice, Bob, and John have been added to the trip."
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "invocation_events": [
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-94f2cd02-920d-4391-9c62-dc7705b73b26",
+                        "args": {
+                          "name": "Alice",
+                          "operation": "add"
+                        },
+                        "name": "partners"
+                      },
+                      "thought_signature": "CuMBAdHtim9H5BKvE8Ln3XM0qDAVaNZrEYiF0LZNjy80G_4oRAMeewOvwXkNWW3IJ04kjymn2_tbMYrCr-KGc84JevpHWgK8cz0rWEKUVVLeceW-2CrCoBgXBsQk-VYKSco0B4Ph34HuAG0I6wqf4uvEXFpGHj6eUnrqYdQUj2BezpUKsIFKYY-WRTUbMiLk9qrukVCYn2_XGyakPE__kA6cV158E5rgSOnTTFfOcifM3eyQTwHVRubrbCTzMn3aahZD2OBZskWZdO8L4ElpIMJsXkf5GFchJnYjNgcWb6_hEZsXNec="
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-94f2cd02-920d-4391-9c62-dc7705b73b26",
+                        "name": "partners",
+                        "response": {
+                          "success": true,
+                          "message": "Partner 'Alice' has been added."
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-f8877433-1b23-4230-a020-2fb6573a3e07",
+                        "args": {
+                          "operation": "add",
+                          "name": "Bob"
+                        },
+                        "name": "partners"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-f8877433-1b23-4230-a020-2fb6573a3e07",
+                        "name": "partners",
+                        "response": {
+                          "success": true,
+                          "message": "Partner 'Bob' has been added."
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-3ba0a511-89c4-4a3b-ad81-79064aa7e60e",
+                        "args": {
+                          "operation": "add",
+                          "name": "John"
+                        },
+                        "name": "partners"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-3ba0a511-89c4-4a3b-ad81-79064aa7e60e",
+                        "name": "partners",
+                        "response": {
+                          "success": true,
+                          "message": "Partner 'John' has been added."
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              }
+            ]
+          },
+          "creation_timestamp": 1763883687.965193
+        },
+        {
+          "invocation_id": "e-27c71149-1e19-43d5-a60b-3cfa4999538a",
+          "user_content": {
+            "parts": [
+              {
+                "text": "First day, the dinner $300 paid by Bob and we decide split equal"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "The $300 dinner paid by Bob has been logged and split equally among Alice, Bob, and John."
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "invocation_events": [
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-a784291e-5be8-42a9-aa83-7e1fb3b3fef8",
+                        "args": {
+                          "currency": "USD",
+                          "description": "dinner",
+                          "paid_by": "Bob",
+                          "amount": 300
+                        },
+                        "name": "log_expense"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-a784291e-5be8-42a9-aa83-7e1fb3b3fef8",
+                        "name": "log_expense",
+                        "response": {
+                          "success": true,
+                          "message": "Expense logged: 300 USD for 'dinner' paid by Bob.",
+                          "expense_id": "dbf892b3"
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-95b99726-057a-4fcc-a30c-662c4268b4bd",
+                        "args": {
+                          "expense_id": "dbf892b3",
+                          "partners": [
+                            "Alice",
+                            "Bob",
+                            "John"
+                          ]
+                        },
+                        "name": "split_expense"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-95b99726-057a-4fcc-a30c-662c4268b4bd",
+                        "name": "split_expense",
+                        "response": {
+                          "success": true,
+                          "message": "Expense split among 3 partners."
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              }
+            ]
+          },
+          "creation_timestamp": 1763883710.539729
+        },
+        {
+          "invocation_id": "e-849b9e16-2b23-4af0-9577-281484f42d5a",
+          "user_content": {
+            "parts": [
+              {
+                "text": "What is our expense?"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Here is a summary of your expenses:\n\nAlice: 100 USD\nBob: 100 USD\nJohn: 100 USD"
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "invocation_events": [
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-1ab4aa95-a1e0-4622-9fd1-62a9f9eb2082",
+                        "args": {
+                          "aggregate": true
+                        },
+                        "name": "get_expenses"
+                      },
+                      "thought_signature": "CrECAdHtim_-rDeK8s88EtPI-mA3VBIm-fAJzf6qSuua03O6rnLfKL2oxZ3VJUlrmN7buyssoyDO9pBKO64qJzj8CcoRsy5KKo3fCp9v4gMDj5vBRGzmu-JuLiIztXpdc2n32r-aHeF2yO9-uv4Lb-5IIfVd8-6c2ANKS3jJXgz99BtcqcO2ijRTQ3mLcYweZP5HTlmQweAd7Vmp1rOCiZdLSVi9nyZctS1HbDwluJ1JG3r5gWw4Ql7JNI8uBFxJulfoWK8qDX5XVkMNUqM9GfVRqg8j3nNIRvoh6RonTAy-FDqPFRvKcYcF0B7PzEl3Iq5gbdFd6OXfBbCZCXIPNDqiN-0-tEvG03AemGovkhs_qUmhano96KAm6zbzQBQMrt0Bk043aB9b15zLtmTSf09ZwsI="
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-1ab4aa95-a1e0-4622-9fd1-62a9f9eb2082",
+                        "name": "get_expenses",
+                        "response": {
+                          "success": true,
+                          "expenses": [
+                            {
+                              "partner": "Alice",
+                              "total_expense": 100.0,
+                              "currency": "USD"
+                            },
+                            {
+                              "partner": "Bob",
+                              "total_expense": 100.0,
+                              "currency": "USD"
+                            },
+                            {
+                              "partner": "John",
+                              "total_expense": 100.0,
+                              "currency": "USD"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              }
+            ]
+          },
+          "creation_timestamp": 1763883724.481491
+        }
+      ],
+      "session_input": {
+        "app_name": "travelcount",
+        "user_id": "user"
+      },
+      "creation_timestamp": 1763883771.070932
+    }
+  ],
+  "creation_timestamp": 1763883757.870976
+}
