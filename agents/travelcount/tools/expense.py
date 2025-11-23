@@ -502,7 +502,10 @@ def _parse_date_range(
 def _aggregate_expenses(
     expenses: list[Expense], splits: dict[str, dict[str, any]]
 ) -> list[dict]:
-    """Aggregate expenses to calculate total expense per partner.
+    """Aggregate expenses to calculate total expense per partner per currency.
+
+    Per multi-currency design, aggregation groups by (partner, currency) tuple.
+    Each partner can have multiple entries if they have expenses in different currencies.
 
     Args:
         expenses: List of Expense entities.
@@ -510,10 +513,12 @@ def _aggregate_expenses(
                 Positive = receives from others (payer), Negative = owes to payer
 
     Returns:
-        List of dicts with partner names and their total expense amounts.
-        Format: [{"partner": "Alice", "total_expense": 85.00, "currency": "USD"}, ...]
+        List of dicts with partner names and their total expense amounts per currency.
+        Format: [{"partner": "Alice", "total_expense": 85.00, "currency": "USD"},
+                 {"partner": "Alice", "total_expense": 42.50, "currency": "EUR"}, ...]
     """
-    partner_totals: dict[str, dict] = {}
+    # Group by (partner, currency) tuple
+    partner_currency_totals: dict[tuple[str, str], dict] = {}
 
     for expense in expenses:
         # Get split information for this expense
@@ -522,18 +527,20 @@ def _aggregate_expenses(
         # If no split exists, the entire expense is the payer's
         if not expense_splits:
             partner_name = expense.paid_by.name
-            if partner_name not in partner_totals:
-                partner_totals[partner_name] = {
+            key = (partner_name, expense.currency)
+            if key not in partner_currency_totals:
+                partner_currency_totals[key] = {
                     "partner": partner_name,
                     "total_expense": 0.0,
                     "currency": expense.currency,
                 }
-            partner_totals[partner_name]["total_expense"] += float(expense.amount)
+            partner_currency_totals[key]["total_expense"] += float(expense.amount)
         else:
             # Calculate each partner's share from net settlements
             for partner_name, net_settlement in expense_splits.items():
-                if partner_name not in partner_totals:
-                    partner_totals[partner_name] = {
+                key = (partner_name, expense.currency)
+                if key not in partner_currency_totals:
+                    partner_currency_totals[key] = {
                         "partner": partner_name,
                         "total_expense": 0.0,
                         "currency": expense.currency,
@@ -549,15 +556,18 @@ def _aggregate_expenses(
                     # Non-payer: share = what they owe (absolute value)
                     share = abs(float(net_settlement))
 
-                partner_totals[partner_name]["total_expense"] += share
+                partner_currency_totals[key]["total_expense"] += share
 
-    return list(partner_totals.values())
+    return list(partner_currency_totals.values())
 
 
 def _format_individual_shares(
     expenses: list[Expense], splits: dict[str, dict[str, any]]
 ) -> list[dict]:
-    """Format expenses as individual items showing each partner's share.
+    """Format expenses as individual items showing each partner's share with currency.
+
+    Per multi-currency design, each expense entry includes the currency to maintain
+    per-currency separation without conversion.
 
     Args:
         expenses: List of Expense entities.
@@ -565,8 +575,8 @@ def _format_individual_shares(
                 Positive = receives from others (payer), Negative = owes to payer
 
     Returns:
-        List of dicts with individual expense shares per partner.
-        Format: [{"description": "Hotel Stay", "shared_by": "Alice", "amount": 50.00}, ...]
+        List of dicts with individual expense shares per partner including currency.
+        Format: [{"description": "Hotel Stay", "shared_by": "Alice", "amount": 50.00, "currency": "USD"}, ...]
     """
     result = []
 
@@ -581,6 +591,7 @@ def _format_individual_shares(
                     "description": expense.description,
                     "shared_by": expense.paid_by.name,
                     "amount": float(expense.amount),
+                    "currency": expense.currency,
                 }
             )
         else:
@@ -599,6 +610,7 @@ def _format_individual_shares(
                         "description": expense.description,
                         "shared_by": partner_name,
                         "amount": share,
+                        "currency": expense.currency,
                     }
                 )
 

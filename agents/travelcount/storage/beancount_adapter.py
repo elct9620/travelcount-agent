@@ -52,7 +52,6 @@ class BeancountAdapter:
 
     ACCOUNT_PREFIX = "Assets:Travel:Partners:"
     EXPENSE_PREFIX = "Expenses:Travel:"
-    CURRENCY = "USD"
 
     def __init__(self, session_manager: SessionManager) -> None:
         """Initialize BeancountAdapter with a SessionManager.

@@ -384,18 +384,21 @@ class TestScenarioGetAllExpenses:
         expenses = result["expenses"]
         assert len(expenses) == 3
 
-        # Assert: Verify expense data is complete (new format: shared_by, description, amount)
+        # Assert: Verify expense data is complete (new format: shared_by, description, amount, currency)
         breakfast = next(exp for exp in expenses if exp["description"] == "Breakfast")
         assert breakfast["amount"] == 50.0
         assert breakfast["shared_by"] == "Alice"
+        assert breakfast["currency"] == "USD"
 
         lunch = next(exp for exp in expenses if exp["description"] == "Lunch")
         assert lunch["amount"] == 75.5
         assert lunch["shared_by"] == "Alice"
+        assert lunch["currency"] == "USD"
 
         dinner = next(exp for exp in expenses if exp["description"] == "Dinner")
         assert dinner["amount"] == 120.0
         assert dinner["shared_by"] == "Alice"
+        assert dinner["currency"] == "USD"
 
 
 class TestScenarioGetAggregatedExpenses:
@@ -534,6 +537,7 @@ class TestScenarioGetExpensesDateRange:
         assert expenses[0]["description"] == "June 5 expense"
         assert expenses[0]["shared_by"] == "Alice"
         assert expenses[0]["amount"] == 50.0
+        assert expenses[0]["currency"] == "USD"
 
     def test_get_expenses_date_range_inclusive(
         self, beancount_adapter, session_manager
@@ -783,3 +787,251 @@ class TestScenarioSplitExpenseNonexistent:
         # Assert: No split transactions created
         split_transactions = _get_transactions_with_metadata(ledger_path, "split-for")
         assert len(split_transactions) == 0
+
+
+class TestScenarioLogMultiCurrencyExpenses:
+    """Scenario: User logs expenses in multiple currencies.
+
+    Reference: docs/design/expense.md lines 522-530
+    """
+
+    def test_log_multi_currency_expenses(self, beancount_adapter, session_manager):
+        """Test logging expenses with different currencies.
+
+        Verifies:
+        - Logging expenses with different currencies
+        - Beancount transactions include correct currency codes
+        - Each expense maintains its original currency
+        """
+        # Arrange: Add partner
+        alice = Partner("Alice")
+        beancount_adapter.add_partner(alice)
+
+        # Act: Log expenses in different currencies
+        usd_result = log_expense(
+            amount=50.0,
+            currency="USD",
+            description="Lunch in USA",
+            paid_by="Alice",
+            repository=beancount_adapter,
+        )
+
+        eur_result = log_expense(
+            amount=42.50,
+            currency="EUR",
+            description="Dinner in Europe",
+            paid_by="Alice",
+            repository=beancount_adapter,
+        )
+
+        jpy_result = log_expense(
+            amount=5000.0,
+            currency="JPY",
+            description="Shopping in Japan",
+            paid_by="Alice",
+            repository=beancount_adapter,
+        )
+
+        # Assert: All expenses logged successfully
+        assert usd_result["success"] is True
+        assert eur_result["success"] is True
+        assert jpy_result["success"] is True
+
+        # Assert: Verify expenses have correct currencies
+        usd_expense = beancount_adapter.get_expense_by_id(usd_result["expense_id"])
+        eur_expense = beancount_adapter.get_expense_by_id(eur_result["expense_id"])
+        jpy_expense = beancount_adapter.get_expense_by_id(jpy_result["expense_id"])
+
+        assert usd_expense.currency == "USD"
+        assert usd_expense.amount == Decimal("50.00")
+
+        assert eur_expense.currency == "EUR"
+        assert eur_expense.amount == Decimal("42.50")
+
+        assert jpy_expense.currency == "JPY"
+        assert jpy_expense.amount == Decimal("5000.00")
+
+        # Assert: Verify ledger transactions have correct currency codes
+        ledger_path = session_manager.get_ledger_path()
+        usd_txn = _get_transaction_by_expense_id(ledger_path, usd_result["expense_id"])
+        eur_txn = _get_transaction_by_expense_id(ledger_path, eur_result["expense_id"])
+        jpy_txn = _get_transaction_by_expense_id(ledger_path, jpy_result["expense_id"])
+
+        # Check posting currencies
+        usd_posting = next(p for p in usd_txn.postings if p.units is not None)
+        assert usd_posting.units.currency == "USD"
+
+        eur_posting = next(p for p in eur_txn.postings if p.units is not None)
+        assert eur_posting.units.currency == "EUR"
+
+        jpy_posting = next(p for p in jpy_txn.postings if p.units is not None)
+        assert jpy_posting.units.currency == "JPY"
+
+
+class TestScenarioGetAggregatedMultiCurrency:
+    """Scenario: User retrieves aggregated expenses with multiple currencies.
+
+    Reference: docs/design/expense.md lines 532-541
+    """
+
+    def test_get_aggregated_multi_currency(self, beancount_adapter, session_manager):
+        """Test aggregation groups by both partner and currency.
+
+        Verifies:
+        - Aggregation groups by (partner, currency) tuple
+        - Each partner can have multiple result entries for different currencies
+        - No cross-currency arithmetic occurs
+        - Split calculations respect original expense currency
+        - Results accurately reflect per-currency totals per partner
+        """
+        # Arrange: Add partners
+        alice = Partner("Alice")
+        bob = Partner("Bob")
+        beancount_adapter.add_partner(alice)
+        beancount_adapter.add_partner(bob)
+
+        # Log USD expenses
+        usd_expense1_result = log_expense(
+            amount=100.0,
+            currency="USD",
+            description="Hotel in USA",
+            paid_by="Alice",
+            repository=beancount_adapter,
+        )
+
+        log_expense(
+            amount=60.0,
+            currency="USD",
+            description="Taxi in USA",
+            paid_by="Bob",
+            repository=beancount_adapter,
+        )
+
+        # Log EUR expenses
+        eur_expense_result = log_expense(
+            amount=85.0,
+            currency="EUR",
+            description="Restaurant in Europe",
+            paid_by="Alice",
+            repository=beancount_adapter,
+        )
+
+        # Split USD expense equally between Alice and Bob
+        split_expense(
+            expense_id=usd_expense1_result["expense_id"],
+            partners=["Alice", "Bob"],
+            repository=beancount_adapter,
+        )
+
+        # Act: Retrieve aggregated expenses
+        result = get_expenses(range="all", aggregate=True, repository=beancount_adapter)
+
+        # Assert: Tool returns success
+        assert result["success"] is True
+        assert "expenses" in result
+
+        aggregated = result["expenses"]
+
+        # Assert: Each partner has separate entries per currency
+        # Alice should have 2 entries (USD and EUR)
+        alice_entries = [exp for exp in aggregated if exp["partner"] == "Alice"]
+        assert len(alice_entries) == 2
+
+        alice_usd = next(exp for exp in alice_entries if exp["currency"] == "USD")
+        alice_eur = next(exp for exp in alice_entries if exp["currency"] == "EUR")
+
+        # Alice paid $100 USD, split equally, her share is $50
+        assert alice_usd["total_expense"] == 50.0
+        assert alice_usd["currency"] == "USD"
+
+        # Alice paid 85 EUR, no split, her share is 85 EUR
+        assert alice_eur["total_expense"] == 85.0
+        assert alice_eur["currency"] == "EUR"
+
+        # Bob should have 1 entry (USD only)
+        bob_entries = [exp for exp in aggregated if exp["partner"] == "Bob"]
+        assert len(bob_entries) == 1
+
+        bob_usd = bob_entries[0]
+        # Bob paid $60 USD + his $50 share from Alice's expense = $110 USD total
+        assert bob_usd["total_expense"] == 110.0
+        assert bob_usd["currency"] == "USD"
+
+    def test_get_individual_multi_currency(self, beancount_adapter, session_manager):
+        """Test individual expense view includes currency field.
+
+        Verifies:
+        - Individual expense entries include currency
+        - Each expense displays currency alongside amount
+        - Non-aggregated view maintains per-currency separation
+        """
+        # Arrange: Add partner and log multi-currency expenses
+        alice = Partner("Alice")
+        bob = Partner("Bob")
+        beancount_adapter.add_partner(alice)
+        beancount_adapter.add_partner(bob)
+
+        # Log USD expense
+        usd_result = log_expense(
+            amount=50.0,
+            currency="USD",
+            description="Lunch",
+            paid_by="Alice",
+            repository=beancount_adapter,
+        )
+
+        # Log EUR expense
+        eur_result = log_expense(
+            amount=42.50,
+            currency="EUR",
+            description="Dinner",
+            paid_by="Bob",
+            repository=beancount_adapter,
+        )
+
+        # Split USD expense
+        split_expense(
+            expense_id=usd_result["expense_id"],
+            partners=["Alice", "Bob"],
+            repository=beancount_adapter,
+        )
+
+        # Act: Retrieve individual expenses
+        result = get_expenses(
+            range="all", aggregate=False, repository=beancount_adapter
+        )
+
+        # Assert: Tool returns success
+        assert result["success"] is True
+        expenses = result["expenses"]
+
+        # Assert: All expense entries include currency field
+        for expense in expenses:
+            assert "currency" in expense
+            assert "amount" in expense
+            assert "description" in expense
+            assert "shared_by" in expense
+
+        # Assert: Verify specific currency entries
+        # USD expense split between Alice and Bob
+        usd_alice = next(
+            exp
+            for exp in expenses
+            if exp["description"] == "Lunch" and exp["shared_by"] == "Alice"
+        )
+        assert usd_alice["currency"] == "USD"
+        assert usd_alice["amount"] == 25.0  # Half of $50
+
+        usd_bob = next(
+            exp
+            for exp in expenses
+            if exp["description"] == "Lunch" and exp["shared_by"] == "Bob"
+        )
+        assert usd_bob["currency"] == "USD"
+        assert usd_bob["amount"] == 25.0  # Half of $50
+
+        # EUR expense (no split)
+        eur_entry = next(exp for exp in expenses if exp["description"] == "Dinner")
+        assert eur_entry["currency"] == "EUR"
+        assert eur_entry["amount"] == 42.50
+        assert eur_entry["shared_by"] == "Bob"
