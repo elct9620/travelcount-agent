@@ -190,12 +190,12 @@ def get_expenses(
 3. Load split transaction data from Beancount ledger (transactions with "split-for" metadata)
 4. Calculate each partner's share based on splits
 5. If aggregate=True:
-   - Group by partner
-   - Calculate total_expense for each partner (sum of their shares)
-   - Return: `[{"partner": "Alice", "total_expense": 85.00, "currency": "USD"}, ...]`
+   - Group by both partner AND currency (per-currency accounting)
+   - Calculate total_expense for each partner-currency combination
+   - Return: `[{"partner": "Alice", "total_expense": 85.00, "currency": "USD"}, {"partner": "Alice", "total_expense": 42.50, "currency": "EUR"}, ...]`
 6. If aggregate=False:
-   - For each expense, create entries for each partner showing their share
-   - Return: `[{"description": "Hotel Stay", "shared_by": "Alice", "amount": 50.00}, ...]`
+   - For each expense, create entries for each partner showing their share with currency
+   - Return: `[{"description": "Hotel Stay", "shared_by": "Alice", "amount": 50.00, "currency": "USD"}, ...]`
 7. Return expense list
 
 **Range parsing:**
@@ -204,8 +204,10 @@ def get_expenses(
 - "YYYY-MM-DD to YYYY-MM-DD": Date range
 
 **Return format per feature spec:**
-- When `aggregate=True`: `[{"partner": "Alice", "total_expense": 85.00, "currency": "USD"}, ...]`
-- When `aggregate=False`: `[{"description": "Hotel Stay", "shared_by": "Alice", "amount": 50.00}, ...]`
+- When `aggregate=True`: `[{"partner": "Alice", "total_expense": 85.00, "currency": "USD"}, {"partner": "Alice", "total_expense": 50.00, "currency": "EUR"}, ...]`
+  - Results are grouped by both partner AND currency (per-currency accounting)
+  - Each partner may have multiple entries if they have expenses in different currencies
+- When `aggregate=False`: `[{"description": "Hotel Stay", "shared_by": "Alice", "amount": 50.00, "currency": "USD"}, ...]`
 
 ### BeancountAdapter Extension
 
@@ -312,6 +314,45 @@ Ratio split:
 2. Find Transaction with matching "expense-id" metadata
 3. Parse transaction to Expense entity
 4. Return Expense or None
+
+### Multi-Currency Support
+
+Per the [Expense](../features/expense.md) feature specification, multi-currency expenses are handled with strict per-currency accounting:
+
+**Key principles:**
+1. **Per-currency separation**: Each currency is tracked independently
+2. **No currency conversion**: System does not perform automatic currency conversion
+3. **Aggregation by currency**: Results are grouped by both partner and currency
+4. **Fixed precision**: All amounts use 2 decimal places regardless of currency
+5. **Validation**: No cross-currency arithmetic operations allowed
+
+**Implementation details:**
+
+**Currency handling in Beancount:**
+- Each transaction posting includes explicit currency designation
+- Account open directives specify allowed currencies
+- Split transactions maintain currency from original expense
+
+**Aggregation logic:**
+- When `aggregate=True`, group expenses by `(partner, currency)` tuple
+- Calculate separate totals for each currency a partner has expenses in
+- Return multiple entries per partner if they have multi-currency expenses
+
+**Example aggregation:**
+```python
+# Input: Alice has $100 USD and 85 EUR in expenses
+# Output:
+[
+  {"partner": "Alice", "total_expense": 85.00, "currency": "USD"},
+  {"partner": "Alice", "total_expense": 42.50, "currency": "EUR"}
+]
+```
+
+**Validation requirements:**
+- Before logging expense in new currency, check if currency is already in use
+- If new currency, add to ledger's currency declarations
+- Ensure all arithmetic operations respect currency boundaries
+- Split calculations must preserve original expense currency
 
 ### Agent Registration
 
@@ -444,14 +485,16 @@ When retrieving expenses without aggregation (`aggregate=False`), return individ
 - Net settlement = total_paid - total_expense (positive means owed TO them, negative means they owe)
 
 **Expected behavior per [Expense](../features/expense.md) feature spec:**
-When retrieving expenses with aggregation (`aggregate=True`), return partner totals:
+When retrieving expenses with aggregation (`aggregate=True`), return partner totals grouped by currency:
 ```json
 [
   {"partner": "Alice", "total_expense": 85.00, "currency": "USD"},
-  {"partner": "Bob", "total_expense": 65.00, "currency": "USD"}
+  {"partner": "Alice", "total_expense": 42.50, "currency": "EUR"},
+  {"partner": "Bob", "total_expense": 15.00, "currency": "USD"},
+  {"partner": "Bob", "total_expense": 42.50, "currency": "EUR"}
 ]
 ```
-The `total_expense` field shows each partner's total share across all expenses after splits.
+The `total_expense` field shows each partner's total share per currency across all expenses after splits. Each partner may have multiple entries if they have expenses in different currencies.
 
 ### Scenario: Retrieve expenses within a specific date range
 
@@ -474,3 +517,24 @@ The `total_expense` field shows each partner's total share across all expenses a
 - Invalid ratio validation (doesn't sum to 100%)
 - Non-existent expense ID handling
 - Non-existent partner handling
+
+### Scenario: Log expenses in multiple currencies
+
+**Test file:** `tests/test_acceptance/test_expense.py::test_log_multi_currency_expenses`
+
+**Coverage:**
+- Logging expenses with different currencies
+- Beancount transactions include correct currency codes
+- Currency declarations are added to ledger when new currency is used
+- Each expense maintains its original currency
+
+### Scenario: Retrieve aggregated expenses with multiple currencies
+
+**Test file:** `tests/test_acceptance/test_expense.py::test_get_aggregated_multi_currency`
+
+**Coverage:**
+- Aggregation groups by both partner and currency
+- Each partner can have multiple result entries for different currencies
+- No cross-currency arithmetic occurs
+- Split calculations respect original expense currency
+- Results accurately reflect per-currency totals per partner
