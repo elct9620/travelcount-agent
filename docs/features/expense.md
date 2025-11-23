@@ -41,16 +41,17 @@ def get_expenses(range: str = "all", aggregate: bool = True) -> list:
     Args:
         range (str, optional): The time range for the expenses to retrieve. Defaults to "all".
         aggregate (bool, optional): Whether to aggregate expenses by partner. Defaults to True.
-            - If True: Returns total expense amount for each partner (their share after splits)
+            - If True: Returns total expense amounts for each partner grouped by currency
             - If False: Returns expense items showing each partner's share per expense
                        (e.g., "Hotel shared by Bob: $50", "Hotel shared by Alice: $50")
 
     Returns:
         list: A list of dictionaries, each representing an expense or aggregated partner total.
-            When aggregate=True:
-                [{"partner": "Alice", "total_expense": 85.00, "currency": "USD"}, ...]
+            When aggregate=True (per-currency grouping):
+                [{"partner": "Alice", "total_expense": 85.00, "currency": "USD"},
+                 {"partner": "Alice", "total_expense": 50.00, "currency": "EUR"}, ...]
             When aggregate=False:
-                [{"description": "Hotel Stay", "shared_by": "Alice", "amount": 50.00}, ...]
+                [{"description": "Hotel Stay", "shared_by": "Alice", "amount": 50.00, "currency": "USD"}, ...]
     """
 ```
 
@@ -72,7 +73,11 @@ After splitting an expense, the split details will be recorded as transfer entri
   Assets:Travel:Partners:Bob     25.00 USD
 ```
 
-Split amounts are displayed with appropriate precision for the currency (e.g., 2 decimal places for USD/EUR, whole numbers for JPY/KRW).
+## Multi-Currency Support
+
+Each currency is handled separately. When returning aggregated expenses, the results will be grouped by currency.
+
+The percision for each currency is fixed to 2 decimal places, and rounded accordingly. No need to handle special percision for currencies not using decimal system (e.g., JPY).
 
 ## Validation
 
@@ -81,6 +86,7 @@ Each operation should produce a valid Beancount file. The following is policies 
 - When new currency is used, update the Beancount file to include all used currencies.
 - If missing the expense account, add it automatically.
 - If missing the partner account, return an error.
+- Aggregation and balances must separate amounts by currency (no cross-currency arithmetic)
 
 ## Scenarios
 
@@ -185,4 +191,29 @@ Feature: Manage travel expenses
         Given an expense of $100 for "Dinner" logged, paid by Alice
         When the user inputs "Split the 'Dinner' expense between Alice and Bob in a 60-50 ratio"
         Then the agent should respond "The sum of the split ratios must equal 100%."
+
+    Scenario: Log expenses in multiple currencies
+        When the user inputs "Log an expense of $100 for 'Hotel Stay' paid by Alice"
+        And the user inputs "Log an expense of 85 EUR for 'Museum Ticket' paid by Bob"
+        Then the agent should respond "Expense of $100 for 'Hotel Stay' has been logged, paid by Alice."
+        And the agent should respond "Expense of 85 EUR for 'Museum Ticket' has been logged, paid by Bob."
+
+    Scenario: Retrieve aggregated expenses with multiple currencies
+        Given multiple expenses logged for the "Summer Vacation" session
+          | Description    | Amount | Currency | Paid By | Date       |
+          | Hotel Stay     | 100.00 | USD      | Alice   | 2024-06-01 |
+          | Museum Ticket  | 85.00  | EUR      | Bob     | 2024-06-02 |
+          | Lunch at Cafe  | 50.00  | USD      | Alice   | 2024-06-03 |
+        And splits have been made accordingly
+          | Description   | Split Between | Ratio |
+          | Hotel Stay    | Alice, Bob    | 50-50 |
+          | Museum Ticket | Alice, Bob    | 50-50 |
+          | Lunch at Cafe | Alice, Bob    | 70-30 |
+        When the user "Alice" inputs "Show me my total expenses for the 'Summer Vacation' trip"
+        Then the agent should respond with separate totals per currency:
+          | Currency | Total | Partner |
+          | USD      | 85.00 | Alice   |
+          | EUR      | 42.50 | Alice   |
+          | USD      | 15.00 | Bob     |
+          | EUR      | 42.50 | Bob     |
 ```
