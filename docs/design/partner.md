@@ -147,15 +147,28 @@ Concrete implementation of PartnerRepository that uses Beancount as the storage 
 - Write Close directives using `beancount.core.data.Close`
 - Filter accounts by prefix (Assets:Travel:Partners:*)
 - Use `beancount.parser.printer.print_entry` for writing directives
+- Validate all changes and rollback on validation errors
 
 **Key Implementation Details:**
 - Partners are stored as Beancount accounts: `Assets:Travel:Partners:[PartnerName]`
-- Open directive format: `YYYY-MM-DD open Assets:Travel:Partners:Alice USD`
-- Close directive format: `YYYY-MM-DD close Assets:Travel:Partners:Alice`
-- Use current date for open/close operations
+- Open directive format: `1970-01-01 open Assets:Travel:Partners:Alice` (epoch date, no currency restriction)
+- Close directive format: `YYYY-MM-DD close Assets:Travel:Partners:Alice` (current date)
 - Parse existing file to check for duplicates before adding
 - Append new directives to maintain chronological order
 - Convert account names back to Partner entities when reading
+
+**Validation and Data Integrity:**
+- All modifications are written via `_write_directive()` which validates changes
+- After writing, ledger is validated using `beancount.loader` and `beancount.ops.validation`
+- If validation fails, ledger is automatically rolled back to previous state
+- Raises `ValidationError` with formatted error messages on validation failure
+- This ensures the ledger remains valid at all times
+
+**Beancount Validation Constraints:**
+- Adding duplicate partners: prevented by tool-level validation checking `partner_exists()`
+- Reopening closed accounts: not supported by Beancount (close directive must be manually removed)
+- Closing accounts with non-zero balance: will fail validation and rollback automatically
+- All account references must occur within open-close date intervals
 
 **Dependencies:**
 - SessionManager - to get current session's ledger file path
@@ -163,6 +176,7 @@ Concrete implementation of PartnerRepository that uses Beancount as the storage 
 - beancount.core.data - for creating directive objects
 - beancount.parser.printer - for writing directives to file
 - beancount.loader - for parsing existing ledger files
+- validator module - for ledger validation and error formatting
 
 ### SessionManager (`agents/travelcount/storage/session_manager.py`)
 
