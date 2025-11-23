@@ -158,6 +158,49 @@ class TestBeancountAdapterRemovePartner:
         assert "open Assets:Travel:Partners:Alice" in ledger_content
         assert "close Assets:Travel:Partners:Alice" in ledger_content
 
+    def test_remove_partner_with_nonzero_balance_raises_error(
+        self, beancount_adapter: BeancountAdapter
+    ) -> None:
+        """Test that removing a partner with non-zero balance raises ValueError."""
+        from agents.travelcount.entities.expense import Expense
+
+        # Add partner and log an expense
+        partner = Partner("Alice")
+        beancount_adapter.add_partner(partner)
+
+        expense = Expense(
+            date=date.today(),
+            amount=100.0,
+            currency="USD",
+            description="Test expense",
+            paid_by=partner,
+        )
+        beancount_adapter.log_expense(expense)
+
+        # Attempt to remove partner with non-zero balance
+        with pytest.raises(
+            ValueError,
+            match="Cannot remove partner 'Alice' because the account has a non-zero balance",
+        ):
+            beancount_adapter.remove_partner("Alice")
+
+    def test_remove_partner_with_zero_balance_succeeds(
+        self, beancount_adapter: BeancountAdapter, session_manager: SessionManager
+    ) -> None:
+        """Test that removing a partner with zero balance succeeds."""
+        partner = Partner("Alice")
+        beancount_adapter.add_partner(partner)
+
+        # Remove partner without any transactions (zero balance)
+        beancount_adapter.remove_partner("Alice")
+
+        # Verify close directive was written
+        ledger_content = session_manager.get_ledger_path().read_text()
+        assert "close Assets:Travel:Partners:Alice" in ledger_content
+
+        # Verify partner is no longer active
+        assert not beancount_adapter.partner_exists("Alice")
+
 
 class TestBeancountAdapterListPartners:
     """Test listing partners from Beancount ledger."""

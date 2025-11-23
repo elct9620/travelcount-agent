@@ -167,7 +167,7 @@ Concrete implementation of PartnerRepository that uses Beancount as the storage 
 **Beancount Validation Constraints:**
 - Adding duplicate partners: prevented by tool-level validation checking `partner_exists()`
 - Reopening closed accounts: not supported by Beancount (close directive must be manually removed)
-- Closing accounts with non-zero balance: will fail validation and rollback automatically
+- Closing accounts with non-zero balance: prevented by adapter-level validation using `beancount.ops.summarize.balance_by_account()`
 - All account references must occur within open-close date intervals
 
 **Dependencies:**

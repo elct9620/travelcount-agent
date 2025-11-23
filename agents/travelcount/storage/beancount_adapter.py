@@ -20,6 +20,7 @@ from pathlib import Path
 from beancount import loader
 from beancount.core import data
 from beancount.core.amount import Amount
+from beancount.ops.summarize import balance_by_account
 from beancount.parser import printer
 
 from ..entities.partner import Partner
@@ -266,13 +267,14 @@ class BeancountAdapter:
         """Remove an existing partner from the repository.
 
         Creates a Close directive in the Beancount ledger for the partner.
-        The partner must exist in the repository.
+        The partner must exist in the repository and have a zero balance.
 
         Args:
             name: The name of the partner to remove
 
         Raises:
             ValueError: If no partner with the given name exists
+            ValueError: If the partner account has a non-zero balance
 
         Example:
             >>> adapter.remove_partner("Alice")
@@ -284,6 +286,17 @@ class BeancountAdapter:
         # Create account name
         partner = Partner(name)
         account_name = self._partner_to_account_name(partner)
+
+        # Check account balance before closing
+        entries, errors, options = self._load_entries()
+        balances, index = balance_by_account(entries)
+
+        if account_name in balances and not balances[account_name].is_empty():
+            raise ValueError(
+                f"Cannot remove partner '{name}' because the account has a non-zero balance. "
+                f"Please settle all expenses before removing the partner."
+            )
+
         ledger_path = self._get_ledger_path()
 
         # Create Close directive
