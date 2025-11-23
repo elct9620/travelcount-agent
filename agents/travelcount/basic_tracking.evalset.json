@@ -323,6 +323,446 @@
         "user_id": "user"
       },
       "creation_timestamp": 1763883771.070932
+    },
+    {
+      "eval_id": "multi_currency",
+      "conversation": [
+        {
+          "invocation_id": "e-20fba3aa-2dc6-4e5b-862a-791bce6ea318",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Hi, I am Alice and travel with my friend Bob"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Hi Alice and Bob! I've added you both as travel partners. How can I help you track your expenses?"
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "invocation_events": [
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-e5403a0a-f58a-4358-bde9-1d6495276e2b",
+                        "args": {
+                          "operation": "add",
+                          "name": "Alice"
+                        },
+                        "name": "partners"
+                      },
+                      "thought_signature": "CroCAdHtim9S7I5Diy5_pyc2TyXTKhlGX0z6v39j6tsGF19wa1DUkMKU9cTencJ4KOoifG61cKrhHIdpvBQaGvPWfs134IhwAc0SXClOeNVwfVSso7RWJNA1ofEA5Yje33x_MryGaIaHfGylPaDUhVrqksppjOByL8CaExXtNp3hIXSqN_aVNwYbSZfjS1f9WvfUbySzIEjuRusJoUmhyuUnVeN9ujjJ9zT5GNV8YJPAYmhnIVO8Hke0YkLmlG4p5V5hR8x5UJFbg-pHW0rErkFAIZC7vqe2-Qju_eXSGV5UCgCg4uaouk6HwYP4szN62IS0ddMYGeexuWsjiiIM-iOWacw5xxjiyISOVSzvxr8KZjSQ7nzGyeznKIN9bKUGx_dZ5G5Pp5leALzNu9psTlDV8gXoZgxlTYQhK5U="
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-e5403a0a-f58a-4358-bde9-1d6495276e2b",
+                        "name": "partners",
+                        "response": {
+                          "success": true,
+                          "message": "Partner 'Alice' has been added."
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-419ee5e0-33f2-4714-9b80-ff9eabc38561",
+                        "args": {
+                          "operation": "add",
+                          "name": "Bob"
+                        },
+                        "name": "partners"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-419ee5e0-33f2-4714-9b80-ff9eabc38561",
+                        "name": "partners",
+                        "response": {
+                          "success": true,
+                          "message": "Partner 'Bob' has been added."
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              }
+            ]
+          },
+          "creation_timestamp": 1763886080.150467
+        },
+        {
+          "invocation_id": "e-d3815c9f-9400-486c-8505-313c462a7a7d",
+          "user_content": {
+            "parts": [
+              {
+                "text": "We spending $100 for transport and paid by Alice, and split with 70-30"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "I can help with that! What currency was the $100 transport expense in?",
+                "thought_signature": "CoEFAdHtim8FwdBh0-4-5WrKwouHJoeAb7NM_3d4KCuq6xfHDuhf_f3JmNJnathmKb99xUUgN_zdKc9yTAK7_BH9gPHXxy6TthbdG935DYQ3IBH_R1WCCU9RGq7qBEjZHpzS3sUAiQCwtYJ66T7mprXZ1Z7O3DbtKbmesvpyn5eS_o_-JoDQQ3AQ3ABE0ZL-3PRRUX8ByBrdAjZaiUj45isZvqGJyyEm16aXsSsk-mB7qUGMIQUFLyWjAsmisCjcKDpKFOJMJoQkdgHfZMWcIQYhVomhRIkdQE8tzBEGrWi_kgNFbrmhc1kk3gGtjHYkDOieHB8HIahxuoD18Z1-453B12xprlU-B7YbefLy2Ek1ESVt2A3VFVQmr3aX3pNLTmii51dHnIvhL917xa7_i5sajt6sqR92xOe7TLo91Mx98OpAgwVrXQVyj1gJlakuJ3IzAP59IxEr3iXvkED7WVruR4htaqhyNFFYmq3qIovpY-_bWXgihnoM7EEVR0Up6S-x0vds0gR3NzIqoeBArWTgUWRp1gFJLUN6SkBjuvWCoKjW3Bs4LkcJ3GxH8DaiBufplKDmBikTJh4vrMLrlUuP3dELACfoh34YbbFrM96TwZm1YxKEXlErA4bmHZe2w7ACwAofJsslryFy6u94UiiNAqMSwG8woC9MeQikLZoA779fT2bJoYJmOujOswDcNWgpljuY8ccybAWZ4CieFgMSmd4EjtqG7VgUQgKwRzlwtdWl6TY3ax-HsHpEUFkeWwZH_EfibGR44JvLc7HLI819BF7M2vz2yK7uvDujjukxMUdwwRKRBhZDrn5-z1UfhbQx0maqhfDLkcpAqFZTd6iCgMU="
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {},
+          "creation_timestamp": 1763886104.839287
+        },
+        {
+          "invocation_id": "e-6ae2902c-8fde-4f22-9c4e-637f438ba70c",
+          "user_content": {
+            "parts": [
+              {
+                "text": "USD"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Got it! I've logged the $100 USD transport expense paid by Alice and split it between Alice (70%) and Bob (30%)."
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "invocation_events": [
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-97c52550-ce5b-448e-9530-fdc7c03c3424",
+                        "args": {
+                          "currency": "USD",
+                          "paid_by": "Alice",
+                          "amount": 100,
+                          "description": "transport"
+                        },
+                        "name": "log_expense"
+                      },
+                      "thought_signature": "CtcEAdHtim-43M9sJbRK-FVh54FyxNNHUyet6Bf5Y0TJPbntm-x8-1_WLBYYeDahT04zm52W0BkWuDqOunLAbbcxuR7g9kZtPHK2R8rHeo6OUr_GbC3yjq1DTGMmow4xxJtoXF7DPgaEY_G3yXa4D4090i3FtWd-kq3dx4RtmkmjxWYWH4xTvkI_ZMdAR9QfJnwg-xLsWB84mkjl82EgnbGFfNmZBAeuaFdRIo8UHv9A1gnLgscpwCEYgihcsn10buAIpjGrm8vHRKqP8NetR0IGn_ThYLHWvhDzgeF8kCNnk3wy7-eZQS_0ErcTYgdqZAWf0uap3QejvifdbnwkoZaPQo8u_9-BPD245aJvxIyGqvQQXEV1zJ2UIsAnhgD3iUKJ315GloGwVmuA8FwuHtlI9WY8uQ91gADAngXW0K5sYa65DIYCuSQ68fX3aiQvXBVDMjoUMcwqRsa38_Zsspzjp0pFz-1k5UrNoI5Il1JYlHLHDg8P61NWE2-o5JDXqWmc4qe4wxIWtdTRsBgPizkKTSbBnK6086cGmKBfRluEEUPC6dKsiBWsoI-Wy6uJGIpmZS5ggUGn4sS867vQ6WUQXUq1g_8_nGvTUwWcQf8mnn0ljbeb2f0vUN-keqn6yOvQAaH4aUfL3rPFNfQIva2nSIW49SU7ZXU0Q5AA-t-MxYk8Kyn28aIaEnRA5C7D71QCIyZ2--IkFYpWr85S3jweyzEW5IQ-UBdcOBtx1NOA42bp52M_9yj7mbyoEp4LVgJCzpa6dZFTp_kdulnITQ7EFBuATtUQa1E="
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-97c52550-ce5b-448e-9530-fdc7c03c3424",
+                        "name": "log_expense",
+                        "response": {
+                          "success": true,
+                          "message": "Expense logged: 100 USD for 'transport' paid by Alice.",
+                          "expense_id": "d447547d"
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-80f9ff33-8085-4fc0-9a89-124fe7755fe0",
+                        "args": {
+                          "ratios": [
+                            0.7,
+                            0.3
+                          ],
+                          "expense_id": "d447547d",
+                          "partners": [
+                            "Alice",
+                            "Bob"
+                          ]
+                        },
+                        "name": "split_expense"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-80f9ff33-8085-4fc0-9a89-124fe7755fe0",
+                        "name": "split_expense",
+                        "response": {
+                          "success": true,
+                          "message": "Expense split among 2 partners."
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              }
+            ]
+          },
+          "creation_timestamp": 1763886110.838516
+        },
+        {
+          "invocation_id": "e-8730e77f-1b0e-4518-98f1-3a7fe0e89c1d",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Now, we move to Tokyo the currency change to JPY"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Understood. The currency is now JPY. How can I assist you with your expenses in Tokyo?",
+                "thought_signature": "CtACAdHtim9SnnaVqBdet3Vgv_PupfoYZr38dEvShbhLfO2aQRNVLi45KDcveegip66uJMvTwlGGbDbTP0DsFvng1UP7qxXRtkilIdIzj6kRnHqt7iPAb_gX1tRsr9Xs9DJrut8Kho5Zl-J7XR5OVaekcC3dVK1rStN3ljRM0H34DusxWl_Q7HhVWw57noQJ63cvENb2NfY7Xw89q9EeRPVG9MsBfS2Ya0mInOV1v3th7l6Y867DUhhOQl0yJ-n2XIFXNxBWOe-sxU9ejjWSFa4vqZHWpY1qD6MJzhRXq5IjBvv8kERSea1Vod8E3BrAzsdei_U0E9TaR5VK2dm3shlBvADdgx4OWkjPvcfMZiqC2th9wZR_qQ9Zt40aw8JEQtGRySHOPKVGimv5XnxFNPHG4mGV90tBxRw8sGnsFH8nKQOl3mQdu33jmxxyi5Eewm7C"
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {},
+          "creation_timestamp": 1763886127.69592
+        },
+        {
+          "invocation_id": "e-da3fab79-7137-4ac7-ba00-866cb0db34f1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "The hotel spend $200 paid by Bob, split equal"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Alright, I've logged the 200 JPY hotel expense paid by Bob and split it equally between you two."
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "invocation_events": [
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-2b792581-4f34-467d-b5ce-4192544f1686",
+                        "args": {
+                          "paid_by": "Bob",
+                          "amount": 200,
+                          "currency": "JPY",
+                          "description": "hotel"
+                        },
+                        "name": "log_expense"
+                      },
+                      "thought_signature": "CqwDAdHtim8HupKHcE7wgTSiIIkPc_tNc2Jxer_ZdYXRl_FV4H9U_cxLqy49IZ-BAbwtGCeNGh7-gTSukbqvnAxr9wfcfqKHdQVi6vdk88K9lVLHVv_1mu05w-0dOZ0a92ryPooZuJVlVLyzDYPYXlgHsPKLqD_E4jvEO8GqMiK97sq5tLhfsxq5p89A5xnuJcqGcvVM5J8LY5DHtrRZeUe08jV6HmYJCDw-lSzrGPBRkZpGUsrSt4SNFoZKlczK76eSyc_PFFQ8qZgQh6JH3Z1lRLuNdvn-nb9F7c5ZiWQCWXbKGYkwqCpXyV4PW0Zis00WIbKEtSeOw93H3zjfZmzdSLqixYAkNOwfk4yqK4XvS2Ywxics6JoBcHq7hFZ1rDc-hVKx_RVf8gv93N0C_k3BOzFBxGPepirGRT-GvAcX2eSia7FTY3nKV8ZYcTwu7pyTfUUyQrECi2MoeFTopP9os3lgwIbSdLM8ALehSY4s_XjL5pIQ6LlHCAuTI6_zAYrOPsLExLupG4aWwM_6ahz-HNAvxMkBd3EYELqE45h7YQkhMJ7bwEb4UP23-pY="
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-2b792581-4f34-467d-b5ce-4192544f1686",
+                        "name": "log_expense",
+                        "response": {
+                          "success": true,
+                          "message": "Expense logged: 200 JPY for 'hotel' paid by Bob.",
+                          "expense_id": "acc05e3c"
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-f4d9b1bf-ff41-48ca-b97f-860dc638aef5",
+                        "args": {
+                          "expense_id": "acc05e3c",
+                          "partners": [
+                            "Alice",
+                            "Bob"
+                          ]
+                        },
+                        "name": "split_expense"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-f4d9b1bf-ff41-48ca-b97f-860dc638aef5",
+                        "name": "split_expense",
+                        "response": {
+                          "success": true,
+                          "message": "Expense split among 2 partners."
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              }
+            ]
+          },
+          "creation_timestamp": 1763886146.537067
+        },
+        {
+          "invocation_id": "e-52434d61-6a52-42ea-9530-2a226b309c4c",
+          "user_content": {
+            "parts": [
+              {
+                "text": "What is our expense?"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Here's a summary of your expenses:\n\n*   **Alice:**\n    *   70 USD\n    *   100 JPY\n*   **Bob:**\n    *   30 USD\n    *   100 JPY"
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "invocation_events": [
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-a72b14c3-b326-450d-9985-a5c1c479f8ff",
+                        "args": {},
+                        "name": "get_expenses"
+                      },
+                      "thought_signature": "CqYHAdHtim-B9bRsWpuw58YKug_t8rEc_vQcexPeKEXNJxvZlcysRZZxzKX2elo9WGoCSyQFSS3hMRPw4FKdANF9gRNiOYJUDVhdCmdByaj-bEuJxoyiwR7DbYvYvMw-v33mmFQ3OpSlCRsbIoa7RDYOsEHrHLCg-kcGihoFuPpp-k1IIel3Rqtd_jW6Qu2qRjLpQ44nqRll_uXvgiazK7cnbjhiUQp5zjFeRDApBwoove7MioDLtBxRLkZyE6C9uph5ZrVrjBiVInMmQkP21mRkmTnxjUJSAechK07IdRUB-lLwQ9Koj-qwMtCaAE06fOU-Mrzohm4WA1yQ6xr0pI3MOLhX1lDWxCo--LdLQvZb6vXeoQ-xACvF3aEtPQLF4GwFiB8PrcJp7HbtyYQdgXRppGa0RoP_7sbYFMAEqSg_i8YDDrLdxI7e-YtnNOPxrHhugutJr8spjz82Z9j-_1zPpGLBPvrm1wSI2sJy2O4QxUeM8z31Ao1Ncu4PPRndmJc43T0CpFSuLpaZfkEHYhaU2737S5FKJ8IZ-JKWmsSizUyF1Jm1T8tWimWIeG5SBIy0RBH8zZwsscbco3XCJbqd9Rw88y6pqw_snla_f1CHRpE_7kZrHKWDqUiWfH382LCvOVd8Jna2K38-SHkEf_coSpmY3hiv-dMAt-8Nf0WIBs9PR1ZBUqQorjonec94jb9JSTCXrI8dhTQ41DwVBKzvhEo04k4bNKmwcvhMnK-CKVg3a1rEB1VrBhofeMron5UJYu-MrWFr3kc4oBP9vFgWwnGCKlZtAEaCEWNClUrdUxS1EOVRet0jJrLKoyYtYWFJveqPOBYT6tHqP4S2AzzE3HcjwjvtW_MgXWXkQSnNeNbD2smECpb8FLvAJdZFQqQKk3W_WS2nyX37pfjHpnsXuL3XYLQyR7izbinfp0SjQnv_zE-ZkRVhAkoDeDYW0UGXGksCeI1cM8KScfU7LFdNYlDktMaY-cj7xfscaHG3pB2zqLiDVDH6fPMBAWZFPF8fz3vqlkZJEazej6GkNg5WgAkpTDuEK5bQZM1tftV2GT4BxKezbwiNwFBy9ecJvotM9J2lpE-uXiYeS5O20Fj7m6Xbv42EJ5j40pakwe7LF3yoU8AxwoxdRxWBRHwHa3_XSuIAsY1G3Sa-kACX3fPF1W5C4ho7JkecbUzECmIpKoZJXtguZQ9w-It0wcoPGkBjcS5DoUDQYPOkmBVriHNErMGEfVHOWw=="
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-a72b14c3-b326-450d-9985-a5c1c479f8ff",
+                        "name": "get_expenses",
+                        "response": {
+                          "success": true,
+                          "expenses": [
+                            {
+                              "partner": "Alice",
+                              "total_expense": 70.0,
+                              "currency": "USD"
+                            },
+                            {
+                              "partner": "Bob",
+                              "total_expense": 30.0,
+                              "currency": "USD"
+                            },
+                            {
+                              "partner": "Alice",
+                              "total_expense": 100.0,
+                              "currency": "JPY"
+                            },
+                            {
+                              "partner": "Bob",
+                              "total_expense": 100.0,
+                              "currency": "JPY"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              }
+            ]
+          },
+          "creation_timestamp": 1763886155.572074
+        }
+      ],
+      "session_input": {
+        "app_name": "travelcount",
+        "user_id": "user"
+      },
+      "creation_timestamp": 1763886176.2605681
     }
   ],
   "creation_timestamp": 1763883757.870976
